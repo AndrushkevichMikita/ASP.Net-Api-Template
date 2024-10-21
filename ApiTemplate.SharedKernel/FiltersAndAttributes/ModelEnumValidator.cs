@@ -1,9 +1,7 @@
 ﻿using ApiTemplate.SharedKernel.ExceptionHandler;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.AspNetCore.Mvc.Filters;
-using System;
 using System.Collections;
-using System.Linq;
 
 namespace ApiTemplate.SharedKernel.FiltersAndAttributes
 {
@@ -12,98 +10,112 @@ namespace ApiTemplate.SharedKernel.FiltersAndAttributes
     /// /// </summary>
     public class ModelEnumValidatorAttribute : ActionFilterAttribute
     {
-
-        private static void ErrorIfEnumInvalid(Type t, object value, string propName)
+        /// <summary>
+        /// Throws an error if the provided enum value is invalid.
+        /// </summary>
+        private static void ErrorIfEnumInvalid(Type enumType, object value, string propName)
         {
-            if (value is null || !Enum.IsDefined(t, value))
+            if (value == null || !Enum.IsDefined(enumType, value))
             {
-                var dict = Enum.GetValues(t)
-                               .Cast<object>()
-                               .ToDictionary(t => (int)t, t => t.ToString());
+                var validValues = Enum.GetValues(enumType)
+                                      .Cast<object>()
+                                      .ToDictionary(t => (int)t, t => t.ToString());
 
-                var message = string.Join(", ", dict.Select(x => x.Key + ": " + x.Value));
-                throw new MyApplicationException(ErrorStatus.InvalidData, $"Pointed value '{value ?? "null"}' invalid for '{propName[(propName.IndexOf("+") + 1)..]}'. Valid values : {message}");
+                var validValuesMessage = string.Join(", ", validValues.Select(x => $"{x.Key}: {x.Value}"));
+                throw new MyApplicationException(ErrorStatus.InvalidData,
+                    $"Invalid value '{value ?? "null"}' for '{propName}'. Valid values: {validValuesMessage}");
             }
         }
 
         /// <summary>
-        /// Validate model for invalid enum
+        /// Validates a model, checking if any of its properties are invalid enums
         /// </summary>
-        private static void ValidateModel(object t, string propName)
+        private static void ValidateModel(object model, string propName)
         {
-            if (t is null)
-                return;
+            if (model == null) return;
 
-            var curType = t.GetType();
-            var isString = curType == typeof(string);
-            var isArray = (curType.IsArray || typeof(IEnumerable).IsAssignableFrom(curType)) && !isString;
-            if (isArray)
-                curType = curType.GetElementType() ?? curType.GetGenericArguments().Single();
+            var modelType = model.GetType();
 
-            if (curType is null) // case possible for empty array/list/ienumerable
-                return;
+            // Skip strings, file types, and other special types
+            if (IsString(modelType) || modelType.Name.Contains("FormFile") || modelType == typeof(Guid) || modelType == typeof(Uri)) return;
 
-            curType = Nullable.GetUnderlyingType(curType) ?? curType;
-
-            if (curType.Name.Contains("FormFile")) // skip form files (FormFile & IFromFile)
-                return;
-
-            if (curType.IsEnum)
+            // Only proceed if it's an enum, enumerable, or complex object
+            if (modelType.IsEnum)
             {
-                if (isArray)
-                    foreach (var x in ((IEnumerable)t).Cast<object>())
-                        ErrorIfEnumInvalid(curType, x, propName);
-                else
-                    ErrorIfEnumInvalid(curType, t, propName);
+                // If it's an enum, validate it directly
+                ErrorIfEnumInvalid(modelType, model, propName);
             }
-            else if (curType is object && curType != typeof(string) && curType != typeof(DateTime))
+            else if (IsArrayOrEnumerable(modelType))
             {
-                var props = curType.GetProperties();
-                if (isArray)
+                // Validates each item in an enumerable if it's an enum or a complex type.
+                foreach (var item in (IEnumerable)model)
                 {
-                    var arr = ((IEnumerable)t).Cast<object>().ToArray();
-                    for (int i = 0; i < props.Length; i++)
-                    {
-                        for (int k = 0; k < arr.Length; ++k)
-                        {
-                            var propertyValue = props[i].GetValue(arr[k]);
-                            ValidateModel(propertyValue, props[i].Name);
-                        }
-                    }
+                    ValidateModel(item, propName);
                 }
-                else
-                    foreach (var x in props)
-                    {
-                        var propertyValue = x.GetValue(t);
-                        ValidateModel(propertyValue, x.Name);
-                    }
             }
+            else if (modelType.IsClass)
+            {
+                // Validates a complex type's properties recursively.
+                foreach (var property in modelType.GetProperties())
+                {
+                    var propertyValue = property.GetValue(model);
+                    ValidateModel(propertyValue, property.Name);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Checks if a type is a string
+        /// </summary>
+        private static bool IsString(Type type) => type == typeof(string);
+
+        /// <summary>
+        /// Determines if a type is an array or IEnumerable
+        /// </summary>
+        private static bool IsArrayOrEnumerable(Type type)
+        {
+            return typeof(IEnumerable).IsAssignableFrom(type) && !IsString(type);
         }
 
         public override void OnActionExecuting(ActionExecutingContext context)
         {
-            // analyze empty query params. In case if type is not nullalbe and value is null => throw error
-            if (context.ActionArguments.Count != context.ActionDescriptor.Parameters.Count)
+            // Handle missing query parameters that are not nullable
+            ValidateQueryParameters(context);
+
+            // Validate model arguments
+            foreach (var argument in context.ActionArguments)
             {
-                foreach (var p in context.ActionDescriptor.Parameters)
+                var parameterDescriptor = context.ActionDescriptor.Parameters.FirstOrDefault(x => x.Name == argument.Key);
+                if (parameterDescriptor != null && parameterDescriptor.BindingInfo?.BindingSource?.Id != "Services")
                 {
-                    if (!context.ActionArguments.TryGetValue(p.Name, out object val))
-                    {
-                        var curType = p.ParameterType;
-                        if (Nullable.GetUnderlyingType(curType) is null && curType != typeof(string))
-                            throw new MyApplicationException(ErrorStatus.InvalidData, $"Query param '{p.Name}' is required");
-                    }
+                    ValidateModel(argument.Value, argument.Key);
                 }
             }
-            foreach (var pair in context.ActionArguments)
+        }
+
+        /// <summary>
+        /// Validates query parameters, ensuring non-nullable types are provided.
+        /// </summary>
+        private static void ValidateQueryParameters(ActionExecutingContext context)
+        {
+            if (context.ActionArguments.Count != context.ActionDescriptor.Parameters.Count)
             {
-                var v = context.ActionDescriptor.Parameters.FirstOrDefault(x => x.Name == pair.Key);
-                if (v is not null && v.BindingInfo?.BindingSource?.Id == "Services") continue;
-                ValidateModel(pair.Value, pair.Value?.ToString());
+                foreach (var parameter in context.ActionDescriptor.Parameters)
+                {
+                    if (!context.ActionArguments.ContainsKey(parameter.Name) &&
+                        Nullable.GetUnderlyingType(parameter.ParameterType) == null &&
+                        parameter.ParameterType != typeof(string))
+                    {
+                        throw new MyApplicationException(ErrorStatus.InvalidData, $"Query parameter '{parameter.Name}' is required.");
+                    }
+                }
             }
         }
     }
 
+    /// <summary>
+    /// Convention to apply ModelEnumValidatorAttribute globally.
+    /// </summary>
     public class ModelStateValidatorConvension : IApplicationModelConvention
     {
         public void Apply(ApplicationModel application)

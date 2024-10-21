@@ -17,10 +17,8 @@ using Microsoft.AspNetCore.Identity;
 using Serilog;
 using Serilog.Exceptions;
 using Serilog.Sinks.Elasticsearch;
-using System.Configuration;
 using System.Reflection;
 using System.Text;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 try
 {
@@ -33,22 +31,31 @@ try
     });
     // applying appsettings
     builder.Configuration.ApplyConfiguration();
+
+    LoggerConfiguration ProvideConfiguration(LoggerConfiguration l)
+    {
+        l = l.ReadFrom.Configuration(builder.Configuration)
+              .Enrich.FromLogContext()
+              .Enrich.WithExceptionDetails()
+              .Enrich.WithMachineName()
+              .Enrich.WithElasticApmCorrelationInfo()
+              .Enrich.WithProperty("Environment", Config.Env)
+              .WriteTo.Console()
+              .WriteTo.File(@"Logs\log.txt", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 31);
+
+        if (!Config.IntegrationTests)
+            l = l.WriteTo.Elasticsearch(new ElasticsearchSinkOptions(new Uri(builder.Configuration["ElasticConfiguration:Uri"]))
+            {
+                AutoRegisterTemplate = true,
+                CustomFormatter = new EcsTextFormatter(),
+                IndexFormat = $"{Assembly.GetExecutingAssembly().GetName().Name.ToLower().Replace(".", "-")}-{Config.Env?.ToLower().Replace(".", "-")}-{DateTime.UtcNow:yyyy-MM}"
+            });
+
+        return l;
+    };
+
     // configure Serilog + Elasticsearch as sink for Serilog
-    builder.Host.UseSerilog((ctx, lc) => lc
-                .ReadFrom.Configuration(builder.Configuration)
-                .Enrich.FromLogContext()
-                .Enrich.WithExceptionDetails()
-                .Enrich.WithMachineName()
-                .Enrich.WithElasticApmCorrelationInfo()
-                .Enrich.WithProperty("Environment", Config.Env)
-                .WriteTo.Console()
-                .WriteTo.File(@"Logs\log.txt", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 31)
-                .WriteTo.Elasticsearch(new ElasticsearchSinkOptions(new Uri(builder.Configuration["ElasticConfiguration:Uri"]))
-                {
-                    AutoRegisterTemplate = true,
-                    CustomFormatter = new EcsTextFormatter(),
-                    IndexFormat = $"{Assembly.GetExecutingAssembly().GetName().Name.ToLower().Replace(".", "-")}-{Config.Env?.ToLower().Replace(".", "-")}-{DateTime.UtcNow:yyyy-MM}"
-                }));
+    builder.Host.UseSerilog((ctx, lc) => ProvideConfiguration(lc));
 
     builder.Services.AddScheduler(new List<SchedulerItem>
     {
@@ -79,7 +86,7 @@ try
 
     webApplication.UseRouting();
 
-    if (!Config.IsProd)
+    if (!Config.Production)
     {
         webApplication.UseSwagger(c =>
         {
@@ -119,7 +126,7 @@ try
 
         endpoints.MapHealthChecks("/health");
         endpoints.MapGet("/api/version", async context => await context.Response.WriteAsync(File.ReadAllLines("./appVersion.txt")[0]));
-        if (!Config.IsProd)
+        if (!Config.Production)
         {
             // don't allow it for Production side - because it shares internal IP
             endpoints.MapGet("/myip", async context =>

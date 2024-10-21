@@ -5,10 +5,13 @@ namespace ApiTemplate.SharedKernel
     public static class Config
     {
         public static readonly string Env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
+
         public static bool IsDev { get; private set; }
-        public static bool IsProd { get; private set; }
-        public static bool IsStaging { get; private set; }
-        public static bool IsPreStaging { get; private set; }
+
+        public static bool Production { get; private set; }
+
+        public static bool IntegrationTests { get; private set; }
+
         public static int MaxRequestSizeBytes { get; set; }
 
         public static void ApplyConfiguration(this ConfigurationManager c)
@@ -16,11 +19,10 @@ namespace ApiTemplate.SharedKernel
             if (string.IsNullOrEmpty(Env))
                 throw new ArgumentNullException("Running app without ASPNETCORE_ENVIRONMENT isn't allowed");
 
-            switch (Env.ToLower())
+            switch (Env)
             {
-                case "prod": IsProd = true; break;
-                case "staging": IsStaging = true; break;
-                case "prestaging": IsPreStaging = true; break;
+                case nameof(Production): Production = true; break;
+                case nameof(IntegrationTests): IntegrationTests = true; break;
                 default: IsDev = true; break;
             }
 

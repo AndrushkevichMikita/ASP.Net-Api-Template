@@ -23,15 +23,8 @@ namespace ApiTemplate.Infrastructure
             {
                 options.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
 
-                if (configuration.GetValue<bool>("IsInMemoryDb"))
-                {
-                    options.UseInMemoryDatabase(Guid.NewGuid().ToString());
-                }
-                else
-                {
-                    var connection = configuration.GetConnectionString("MSSQL") ?? throw new ArgumentNullException("Db connection");
-                    options.UseSqlServer(connection);
-                }
+                var connection = configuration.GetConnectionString("MSSQL") ?? throw new ArgumentNullException("Db connection");
+                options.UseSqlServer(connection);
             });
 
             services.AddDefaultIdentity<AccountEntity>(options =>
@@ -80,12 +73,11 @@ namespace ApiTemplate.Infrastructure
         public static async Task ApplyDbMigrations(this IServiceProvider servicesProvider, IConfiguration configuration)
         {
             var scope = servicesProvider.CreateScope().ServiceProvider;
-            if (!configuration.GetValue<bool>("IsInMemoryDb"))
-            {
-                var db = scope.GetRequiredService<ApplicationDbContext>().Database;
-                if ((await db.GetPendingMigrationsAsync()).Any())
-                    await db.MigrateAsync();
-            }
+
+            var db = scope.GetRequiredService<ApplicationDbContext>().Database;
+            if ((await db.GetPendingMigrationsAsync()).Any())
+                await db.MigrateAsync();
+
             // adding roles
             var roleManager = scope.GetRequiredService<RoleManager<IdentityRole<int>>>();
             foreach (var role in Enum.GetNames(typeof(RoleEnum)))

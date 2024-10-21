@@ -1,11 +1,21 @@
 {
   "profiles": {
-    "ApiTemplate.Presentation.Web": {
+    "ApiTemplate.Presentation.Web Development": {
       "commandName": "Project",
       "launchBrowser": true,
       "launchUrl": "api",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "dotnetRunMessages": true,
+      "applicationUrl": "https://localhost:7028;http://localhost:5103"
+    },
+    "ApiTemplate.Presentation.Web Production": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "api",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Production"
       },
       "dotnetRunMessages": true,
       "applicationUrl": "https://localhost:7028;http://localhost:5103"
