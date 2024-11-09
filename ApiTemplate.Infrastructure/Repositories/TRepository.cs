@@ -1,4 +1,4 @@
-﻿using ApiTemplate.Domain.Interfaces;
+﻿using ApiTemplate.Application.Interfaces;
 using ApiTemplate.SharedKernel.PrimitivesExtensions;
 using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +8,7 @@ using System.Linq.Expressions;
 
 namespace ApiTemplate.Infrastructure.Repositories
 {
-    public class TRepository<TEntity> : IRepo<TEntity> where TEntity : class
+    public class TRepository<TEntity> : IRepository<TEntity> where TEntity : class
     {
         /// <summary>
         /// Min value when bulk operation must be applied

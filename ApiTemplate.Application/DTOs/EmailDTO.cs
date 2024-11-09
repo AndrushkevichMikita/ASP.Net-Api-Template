@@ -1,6 +1,6 @@
 ﻿namespace ApiTemplate.Application.Models
 {
-    public class EmailDto
+    public class EmailDTO
     {
         public string DigitCode { get; set; }
 

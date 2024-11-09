@@ -27,7 +27,7 @@ namespace ApiTemplate.Presentation.Web.Controllers
         [HttpPost("refreshToken")]
         public async Task<RefreshTokenModel> RefreshToken([FromBody] RefreshTokenModel model)
         {
-            var dto = _mapper.Map<RefreshTokenDto>(model);
+            var dto = _mapper.Map<RefreshTokenDTO>(model);
             return _mapper.Map<RefreshTokenModel>(await _account.CreateNewJwtPair(dto, CurrentUser.Id));
         }
 
@@ -46,7 +46,7 @@ namespace ApiTemplate.Presentation.Web.Controllers
         [HttpPost("signUp")]
         public async Task CreateAccount(CreateAccountModel model)
         {
-            var dto = _mapper.Map<CreateAccountDto>(model);
+            var dto = _mapper.Map<CreateAccountDTO>(model);
             await _account.CreateAccount(dto);
         }
 
@@ -54,7 +54,7 @@ namespace ApiTemplate.Presentation.Web.Controllers
         [HttpPost("signIn")]
         public async Task<RefreshTokenModel> LoginAccount(LoginAccountModel model)
         {
-            var dto = _mapper.Map<LoginAccountDto>(model);
+            var dto = _mapper.Map<LoginAccountDTO>(model);
             return _mapper.Map<RefreshTokenModel>(await _account.LoginAccount(dto));
         }
 

@@ -1,8 +1,8 @@
 ﻿using System.Linq.Expressions;
 
-namespace ApiTemplate.Domain.Interfaces
+namespace ApiTemplate.Application.Interfaces
 {
-    public interface IRepo<TEntity> where TEntity : class
+    public interface IRepository<TEntity> where TEntity : class
     {
         IQueryable<TEntity> GetIQueryable(bool asNoTracking);
         IQueryable<TEntity> GetIQueryable();

@@ -1,6 +1,6 @@
 ﻿namespace ApiTemplate.Application.Models
 {
-    public class RefreshTokenDto
+    public class RefreshTokenDTO
     {
         public string Token { get; set; }
 

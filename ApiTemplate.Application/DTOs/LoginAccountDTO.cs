@@ -1,8 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
-
-namespace ApiTemplate.Application.Models
+﻿namespace ApiTemplate.Application.Models
 {
-    public class LoginAccountDto
+    public class LoginAccountDTO
     {
         public string Email { get; set; }
 

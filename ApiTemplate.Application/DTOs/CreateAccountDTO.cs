@@ -2,7 +2,7 @@
 
 namespace ApiTemplate.Application.Models
 {
-    public class CreateAccountDto
+    public class CreateAccountDTO
     {
         public string Email { get; set; }
 

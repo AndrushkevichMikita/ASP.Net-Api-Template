@@ -1,7 +1,6 @@
 ﻿using ApiTemplate.Application.Interfaces;
 using ApiTemplate.Application.Models;
 using ApiTemplate.Domain.Entities;
-using ApiTemplate.Domain.Interfaces;
 using ApiTemplate.Domain.Services;
 using ApiTemplate.SharedKernel.ExceptionHandler;
 using AutoMapper;
@@ -11,13 +10,13 @@ namespace ApiTemplate.Application.Services
 {
     public class AccountService : IAccountService
     {
-        private readonly IRepo<AccountTokenEntity> _userTokenRepo;
+        private readonly IRepository<AccountTokenEntity> _userTokenRepo;
         private readonly IEmailTemplateService _emailTemplateService;
         private readonly ApplicationSignInManager _signInManager;
         private readonly IMapper _mapper;
 
         public AccountService(IEmailTemplateService emailTemplateService,
-                              IRepo<AccountTokenEntity> userTokenRepo,
+                              IRepository<AccountTokenEntity> userTokenRepo,
                               ApplicationSignInManager signManager,
                               IMapper mapper)
         {
@@ -45,9 +44,9 @@ namespace ApiTemplate.Application.Services
             return existingUser;
         }
 
-        private async Task<RefreshTokenDto> CreateNewJwtPair(AccountEntity appUser)
+        private async Task<RefreshTokenDTO> CreateNewJwtPair(AccountEntity appUser)
         {
-            return new RefreshTokenDto
+            return new RefreshTokenDTO
             {
                 Token = await _signInManager.GenerateJwtTokenAsync(appUser),
                 RefreshToken = await _signInManager.GenerateRefreshTokenAsync(appUser)
@@ -57,7 +56,7 @@ namespace ApiTemplate.Application.Services
         public Task SignOut()
             => _signInManager.SignOutAsync();
 
-        public async Task<RefreshTokenDto> LoginAccount(LoginAccountDto model)
+        public async Task<RefreshTokenDTO> LoginAccount(LoginAccountDTO model)
         {
             var appUser = await _signInManager.UserManager.FindByEmailAsync(model.Email) ?? throw new MyApplicationException(ErrorStatus.NotFound, "User not found");
             if (!await _signInManager.UserManager.IsEmailConfirmedAsync(appUser)) throw new MyApplicationException(ErrorStatus.InvalidData, "Email unconfirmed");
@@ -68,7 +67,7 @@ namespace ApiTemplate.Application.Services
             return await CreateNewJwtPair(appUser);
         }
 
-        public async Task CreateAccount(CreateAccountDto model)
+        public async Task CreateAccount(CreateAccountDTO model)
         {
             await DeleteSameNotConfirmed(model.Email);
 
@@ -78,11 +77,11 @@ namespace ApiTemplate.Application.Services
             await _signInManager.UserManager.AddToRoleAsync(toInsert, model.Role.ToString());
         }
 
-        public async Task<AccountDto> GetCurrent(int userId)
+        public async Task<AccountDTO> GetCurrent(int userId)
         {
             var appUser = await _signInManager.UserManager.FindByIdAsync(userId.ToString());
             if (appUser is null) return null;
-            return _mapper.Map<AccountDto>(appUser);
+            return _mapper.Map<AccountDTO>(appUser);
         }
 
         public async Task SendDigitCodeByEmail(string email)
@@ -106,7 +105,7 @@ namespace ApiTemplate.Application.Services
                 Value = await _signInManager.UserManager.GenerateEmailConfirmationTokenAsync(appUser)
             }, true);
 
-            await _emailTemplateService.SendDigitCodeAsync(new EmailDto
+            await _emailTemplateService.SendDigitCodeAsync(new EmailDTO
             {
                 UserEmail = appUser.Email,
                 DigitCode = digitCode,
@@ -141,7 +140,7 @@ namespace ApiTemplate.Application.Services
             await _signInManager.UserManager.DeleteAsync(account);
         }
 
-        public async Task<RefreshTokenDto> CreateNewJwtPair(RefreshTokenDto model, int userId)
+        public async Task<RefreshTokenDTO> CreateNewJwtPair(RefreshTokenDTO model, int userId)
         {
             var appUser = await _signInManager.UserManager.FindByIdAsync(userId.ToString());
 

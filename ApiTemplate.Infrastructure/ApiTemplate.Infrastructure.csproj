@@ -23,6 +23,7 @@
     <Folder Include="Migrations\" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\ApiTemplate.Application\ApiTemplate.Application.csproj" />
     <ProjectReference Include="..\ApiTemplate.Domain\ApiTemplate.Domain.csproj" />
     <ProjectReference Include="..\ApiTemplate.SharedKernel\ApiTemplate.SharedKernel.csproj" />
   </ItemGroup>

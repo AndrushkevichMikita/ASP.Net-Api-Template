@@ -9,11 +9,11 @@ namespace ApiTemplate.Presentation.Web.Mappings
         public AccountProfile()
         {
             // Source => Target
-            CreateMap<CreateAccountModel, CreateAccountDto>();
-            CreateMap<LoginAccountModel, LoginAccountDto>();
-            CreateMap<RefreshTokenModel, RefreshTokenDto>();
-            CreateMap<RefreshTokenDto, RefreshTokenModel>();
-            CreateMap<AccountDto, AccountModel>();
+            CreateMap<CreateAccountModel, CreateAccountDTO>();
+            CreateMap<LoginAccountModel, LoginAccountDTO>();
+            CreateMap<RefreshTokenModel, RefreshTokenDTO>();
+            CreateMap<RefreshTokenDTO, RefreshTokenModel>();
+            CreateMap<AccountDTO, AccountModel>();
         }
     }
 }

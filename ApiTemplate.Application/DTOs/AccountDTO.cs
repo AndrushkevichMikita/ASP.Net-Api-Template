@@ -2,7 +2,7 @@
 
 namespace ApiTemplate.Application.Models
 {
-    public class AccountDto
+    public class AccountDTO
     {
         public int Id { get; set; }
 

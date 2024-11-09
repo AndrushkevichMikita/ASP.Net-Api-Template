@@ -39,7 +39,7 @@ namespace ApiTemplate.Application.Services
                    .ReplaceFirst("{linkDisplay}", string.IsNullOrEmpty(linkText) ? "none" : "initial");
         }
 
-        public async Task SendDigitCodeAsync(EmailDto model)
+        public async Task SendDigitCodeAsync(EmailDTO model)
         {
             var html = await GetBaseTemplate(
                        name: $"{model.FirstName} {model.LastName}",
@@ -50,7 +50,7 @@ namespace ApiTemplate.Application.Services
             await _sptmService.SendAsync(model.UserEmail, "Confirmation code", html);
         }
 
-        public async Task SendDigitCodeParallelAsync(List<EmailDto> models)
+        public async Task SendDigitCodeParallelAsync(List<EmailDTO> models)
         {
             await Parallel.ForEachAsync(models, async (model, token) => await SendDigitCodeAsync(model));
         }

@@ -18,11 +18,11 @@ namespace ApiTemplate.Presentation.Web.Tests
         }
 
         [Theory]
-        [InlineData(typeof(CreateAccountModel), typeof(CreateAccountDto))]
-        [InlineData(typeof(LoginAccountModel), typeof(LoginAccountDto))]
-        [InlineData(typeof(RefreshTokenModel), typeof(RefreshTokenDto))]
-        [InlineData(typeof(RefreshTokenDto), typeof(RefreshTokenModel))]
-        [InlineData(typeof(AccountDto), typeof(AccountModel))]
+        [InlineData(typeof(CreateAccountModel), typeof(CreateAccountDTO))]
+        [InlineData(typeof(LoginAccountModel), typeof(LoginAccountDTO))]
+        [InlineData(typeof(RefreshTokenModel), typeof(RefreshTokenDTO))]
+        [InlineData(typeof(RefreshTokenDTO), typeof(RefreshTokenModel))]
+        [InlineData(typeof(AccountDTO), typeof(AccountModel))]
         public void AccountProfile_MappingIsValid(Type source, Type destination)
         {
             // Arrange & Act

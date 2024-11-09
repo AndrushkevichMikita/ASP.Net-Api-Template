@@ -1,5 +1,5 @@
-﻿using ApiTemplate.Domain.Entities;
-using ApiTemplate.Domain.Interfaces;
+﻿using ApiTemplate.Application.Interfaces;
+using ApiTemplate.Domain.Entities;
 using ApiTemplate.Infrastructure.Interceptors;
 using ApiTemplate.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Builder;
@@ -17,7 +17,7 @@ namespace ApiTemplate.Infrastructure
     public static class InfrastructureDependencyInjection
     {
         public static IServiceCollection AddInfrastructure<TFactory>(this IServiceCollection services, IConfiguration configuration)
-            where TFactory : UserClaimsPrincipalFactory<AccountEntity, IdentityRole<int>>
+               where TFactory : UserClaimsPrincipalFactory<AccountEntity, IdentityRole<int>>
         {
             services.AddDbContext<ApplicationDbContext>((sp, options) =>
             {
@@ -44,6 +44,7 @@ namespace ApiTemplate.Infrastructure
               .AddDefaultTokenProviders()
               .AddClaimsPrincipalFactory<TFactory>();
 
+            // TODO: Is it possible to move this cookies configuration to application\presentation layer ?
             services.ConfigureApplicationCookie(options =>
             {
                 options.Cookie.HttpOnly = true;
@@ -62,7 +63,7 @@ namespace ApiTemplate.Infrastructure
                 };
             });
 
-            services.AddScoped(typeof(IRepo<>), typeof(TRepository<>));
+            services.AddScoped(typeof(IRepository<>), typeof(TRepository<>));
             services.AddScoped<ISaveChangesInterceptor, AccountEntityInterceptor>();
 #if DEBUG
             services.AddDatabaseDeveloperPageExceptionFilter();

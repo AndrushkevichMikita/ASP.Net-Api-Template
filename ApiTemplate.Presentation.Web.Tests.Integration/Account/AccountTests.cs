@@ -1,5 +1,5 @@
-﻿using ApiTemplate.Domain.Entities;
-using ApiTemplate.Domain.Interfaces;
+﻿using ApiTemplate.Application.Interfaces;
+using ApiTemplate.Domain.Entities;
 using ApiTemplate.Presentation.Web.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -44,11 +44,11 @@ namespace ApiTemplate.Presentation.Web.Tests.Integration.Account
         private async Task<HttpResponseMessage> ConfirmUserEmail(string code)
              => await HTTPClient.PutAsJsonAsync("api/account/digitCode", code);
 
-        private IRepo<AccountEntity> AccountRepo
-             => ServicesScope.ServiceProvider.GetRequiredService<IRepo<AccountEntity>>();
+        private IRepository<AccountEntity> AccountRepo
+             => ServicesScope.ServiceProvider.GetRequiredService<IRepository<AccountEntity>>();
 
-        private IRepo<AccountTokenEntity> TokensRepo
-             => ServicesScope.ServiceProvider.GetRequiredService<IRepo<AccountTokenEntity>>();
+        private IRepository<AccountTokenEntity> TokensRepo
+             => ServicesScope.ServiceProvider.GetRequiredService<IRepository<AccountTokenEntity>>();
 
         private async Task<(HttpResponseMessage createAccount,
                             HttpResponseMessage sendDigitCode,

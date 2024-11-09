@@ -19,7 +19,7 @@ namespace ApiTemplate.Application.Tests
 {
     public class AccountServiceTests
     {
-        private readonly Mock<IRepo<AccountTokenEntity>> _userTokenRepoMock;
+        private readonly Mock<IRepository<AccountTokenEntity>> _userTokenRepoMock;
         private readonly Mock<IEmailTemplateService> _emailTemplateServiceMock;
         private readonly Mock<ApplicationSignInManager> _signInManager;
         private readonly Mock<UserManager<AccountEntity>> _userManagerMock;
@@ -29,7 +29,7 @@ namespace ApiTemplate.Application.Tests
         public AccountServiceTests()
         {
             _mapperMock = new Mock<IMapper>();
-            _userTokenRepoMock = new Mock<IRepo<AccountTokenEntity>>();
+            _userTokenRepoMock = new Mock<IRepository<AccountTokenEntity>>();
             _emailTemplateServiceMock = new Mock<IEmailTemplateService>();
 
             _userManagerMock = new Mock<UserManager<AccountEntity>>(
@@ -90,7 +90,7 @@ namespace ApiTemplate.Application.Tests
         public async Task LoginAccount_UserNotFound_ThrowsException()
         {
             // Arrange
-            var accountDto = new LoginAccountDto { Email = "test@example.com", Password = "password123", RememberMe = true };
+            var accountDto = new LoginAccountDTO { Email = "test@example.com", Password = "password123", RememberMe = true };
 
             _userManagerMock.Setup(x => x.FindByEmailAsync(accountDto.Email))
                             .ReturnsAsync((AccountEntity)null);
@@ -102,7 +102,7 @@ namespace ApiTemplate.Application.Tests
         public async Task LoginAccount_ShouldReturnRefreshTokenDto_WhenCredentialsAreValid()
         {
             // Arrange
-            var accountDto = new LoginAccountDto { Email = "test@example.com", Password = "Password123", RememberMe = true };
+            var accountDto = new LoginAccountDTO { Email = "test@example.com", Password = "Password123", RememberMe = true };
             var accountEntity = new AccountEntity { Email = "test@example.com" };
 
             _userManagerMock.Setup(x => x.FindByEmailAsync(accountDto.Email))
@@ -132,7 +132,7 @@ namespace ApiTemplate.Application.Tests
         public async Task CreateAccount_ShouldCreateNewAccount_WhenModelIsValid()
         {
             // Arrange
-            var accountDto = new CreateAccountDto { Email = "test@example.com", Password = "password123", Role = RoleEnum.Admin };
+            var accountDto = new CreateAccountDTO { Email = "test@example.com", Password = "password123", Role = RoleEnum.Admin };
             var accountEntity = new AccountEntity { Email = accountDto.Email, Role = accountDto.Role };
             _mapperMock.Setup(x => x.Map<AccountEntity>(accountDto)).Returns(accountEntity);
 
@@ -181,7 +181,7 @@ namespace ApiTemplate.Application.Tests
             await _accountService.SendDigitCodeByEmail(email);
 
             // Assert
-            _emailTemplateServiceMock.Verify(x => x.SendDigitCodeAsync(It.Is<EmailDto>(dto =>
+            _emailTemplateServiceMock.Verify(x => x.SendDigitCodeAsync(It.Is<EmailDTO>(dto =>
                 dto.UserEmail == email &&
                 dto.DigitCode.Length == 4 &&
                 dto.FirstName == "John" &&
@@ -194,12 +194,12 @@ namespace ApiTemplate.Application.Tests
             // Arrange
             var userId = 1;
             var accountEntity = new AccountEntity { Id = userId, Email = "test@example.com" };
-            var accountDto = new AccountDto { Email = "test@example.com" };
+            var accountDto = new AccountDTO { Email = "test@example.com" };
 
             _userManagerMock.Setup(x => x.FindByIdAsync(userId.ToString()))
                             .ReturnsAsync(accountEntity);
 
-            _mapperMock.Setup(x => x.Map<AccountDto>(accountEntity))
+            _mapperMock.Setup(x => x.Map<AccountDTO>(accountEntity))
                        .Returns(accountDto);
             // Act
             var result = await _accountService.GetCurrent(userId);
@@ -228,7 +228,7 @@ namespace ApiTemplate.Application.Tests
             await _accountService.SendDigitCodeByEmail(email);
 
             // Assert
-            _emailTemplateServiceMock.Verify(x => x.SendDigitCodeAsync(It.IsAny<EmailDto>()), Times.Once);
+            _emailTemplateServiceMock.Verify(x => x.SendDigitCodeAsync(It.IsAny<EmailDTO>()), Times.Once);
             _userTokenRepoMock.Verify(x => x.InsertAsync(It.IsAny<AccountTokenEntity>(), true, CancellationToken.None), Times.Once);
         }
 
@@ -278,7 +278,7 @@ namespace ApiTemplate.Application.Tests
         {
             // Arrange
             var userId = 1;
-            var refreshTokenDto = new RefreshTokenDto { RefreshToken = "valid_refresh_token" };
+            var refreshTokenDto = new RefreshTokenDTO { RefreshToken = "valid_refresh_token" };
             var accountEntity = new AccountEntity { Id = userId, RefreshToken = "valid_refresh_token", RefreshTokenExpiryTime = DateTime.UtcNow.AddMinutes(5) };
 
             _userManagerMock.Setup(x => x.FindByIdAsync(userId.ToString()))

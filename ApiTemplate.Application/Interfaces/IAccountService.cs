@@ -4,11 +4,11 @@ namespace ApiTemplate.Application.Interfaces
 {
     public interface IAccountService
     {
-        Task CreateAccount(CreateAccountDto model);
+        Task CreateAccount(CreateAccountDTO model);
 
-        Task<RefreshTokenDto> LoginAccount(LoginAccountDto model);
+        Task<RefreshTokenDTO> LoginAccount(LoginAccountDTO model);
 
-        Task<RefreshTokenDto> CreateNewJwtPair(RefreshTokenDto model, int userId);
+        Task<RefreshTokenDTO> CreateNewJwtPair(RefreshTokenDTO model, int userId);
 
         Task SignOut();
 
@@ -18,6 +18,6 @@ namespace ApiTemplate.Application.Interfaces
 
         Task Delete(string password, int accountId);
 
-        Task<AccountDto> GetCurrent(int userId);
+        Task<AccountDTO> GetCurrent(int userId);
     }
 }

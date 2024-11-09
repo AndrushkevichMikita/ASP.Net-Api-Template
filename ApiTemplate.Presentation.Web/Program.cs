@@ -86,20 +86,17 @@ try
 
     webApplication.UseRouting();
 
-    if (!Config.Production)
+    webApplication.UseSwagger(c =>
     {
-        webApplication.UseSwagger(c =>
-        {
-            c.RouteTemplate = "api/{documentname}/swagger.json";
-        });
-        // Enable middleware to serve swagger-ui (HTML, JS, CSS, etc.),
-        // specifying the Swagger JSON endpoint.
-        webApplication.UseSwaggerUI(c =>
-        {
-            c.SwaggerEndpoint("/api/v1/swagger.json", "asp-web-api template");
-            c.RoutePrefix = "api";
-        });
-    }
+        c.RouteTemplate = "api/{documentname}/swagger.json";
+    });
+    // Enable middleware to serve swagger-ui (HTML, JS, CSS, etc.),
+    // specifying the Swagger JSON endpoint.
+    webApplication.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/api/v1/swagger.json", "asp-web-api template");
+        c.RoutePrefix = "api";
+    });
 
     webApplication.UseAuthentication();
 
