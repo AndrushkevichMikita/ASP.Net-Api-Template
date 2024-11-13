@@ -1,7 +1,6 @@
 ﻿using ApiTemplate.Application.Interfaces;
 using ApiTemplate.Application.Models;
 using ApiTemplate.Domain.Entities;
-using ApiTemplate.Domain.Services;
 using ApiTemplate.SharedKernel.ExceptionHandler;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;

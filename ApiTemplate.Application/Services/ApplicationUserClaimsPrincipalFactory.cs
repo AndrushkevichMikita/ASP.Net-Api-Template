@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
 
-namespace ApiTemplate.Domain.Services
+namespace ApiTemplate.Application.Services
 {
     public class ApplicationUserClaimsPrincipalFactory : UserClaimsPrincipalFactory<AccountEntity, IdentityRole<int>>
     {

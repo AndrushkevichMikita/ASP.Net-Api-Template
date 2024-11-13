@@ -1,6 +1,5 @@
 using ApiTemplate.Application;
 using ApiTemplate.Domain;
-using ApiTemplate.Domain.Services;
 using ApiTemplate.Infrastructure;
 using ApiTemplate.Presentation.Web;
 using ApiTemplate.SharedKernel;
@@ -13,7 +12,6 @@ using Elastic.Apm.DiagnosticSource;
 using Elastic.Apm.EntityFrameworkCore;
 using Elastic.Apm.SerilogEnricher;
 using Elastic.CommonSchema.Serilog;
-using Microsoft.AspNetCore.Identity;
 using Serilog;
 using Serilog.Exceptions;
 using Serilog.Sinks.Elasticsearch;
@@ -63,8 +61,8 @@ try
     });
 
     builder.Services.AddPresentation(builder.Configuration)
-                    .AddApplicationServices(builder.Configuration, IdentityConstants.ApplicationScheme)
-                    .AddInfrastructure<ApplicationUserClaimsPrincipalFactory>(builder.Configuration)
+                    .AddApplicationServices()
+                    .AddInfrastructure(builder.Configuration)
                     .AddDomain(builder.Configuration)
                     .AddSharedKernel();
 

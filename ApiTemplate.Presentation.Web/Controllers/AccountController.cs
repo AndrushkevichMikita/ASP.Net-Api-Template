@@ -1,5 +1,4 @@
-﻿using ApiTemplate.Application;
-using ApiTemplate.Application.Interfaces;
+﻿using ApiTemplate.Application.Interfaces;
 using ApiTemplate.Application.Models;
 using ApiTemplate.Domain.Entities;
 using ApiTemplate.Presentation.Web.Models;
@@ -23,7 +22,7 @@ namespace ApiTemplate.Presentation.Web.Controllers
             _account = account;
         }
 
-        [Authorize(AuthenticationSchemes = ApplicationDependencyInjection.JWTWithNoExpirationSchema)]
+        [Authorize(AuthenticationSchemes = PresentationDependencyInjection.JWTWithNoExpirationSchema)]
         [HttpPost("refreshToken")]
         public async Task<RefreshTokenModel> RefreshToken([FromBody] RefreshTokenModel model)
         {

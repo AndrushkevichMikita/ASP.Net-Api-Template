@@ -10,7 +10,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
-namespace ApiTemplate.Domain.Services
+namespace ApiTemplate.Application.Services
 {
     public class ApplicationSignInManager : SignInManager<AccountEntity>
     {

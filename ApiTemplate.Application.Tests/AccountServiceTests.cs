@@ -2,8 +2,6 @@ using ApiTemplate.Application.Interfaces;
 using ApiTemplate.Application.Models;
 using ApiTemplate.Application.Services;
 using ApiTemplate.Domain.Entities;
-using ApiTemplate.Domain.Interfaces;
-using ApiTemplate.Domain.Services;
 using ApiTemplate.SharedKernel.ExceptionHandler;
 using ApiTemplate.SharedKernel.Extensions;
 using AutoMapper;
@@ -239,7 +237,7 @@ namespace ApiTemplate.Application.Tests
             var digitCode = "1234";
             var accountEntity = new AccountEntity { Id = 1, Email = "test@example.com" };
             var accountTokenEntity = new AccountTokenEntity { UserId = 1, Name = digitCode, Value = "token_value", User = accountEntity, LoginProvider = TokenEnum.EmailToken.ToString() };
-           
+
             _userTokenRepoMock.Setup(x => x.GetIQueryable())
                               .Returns(IQueryableExtension.AsAsyncQueryable(new List<AccountTokenEntity> { accountTokenEntity }));
 
