@@ -16,8 +16,8 @@ namespace ApiTemplate.Application.Interfaces
 
         Task SendDigitCodeByEmail(string email);
 
-        Task Delete(string password, int accountId);
+        Task DeleteAccount(string password, int accountId);
 
-        Task<AccountDTO> GetCurrent(int userId);
+        Task<AccountDTO> GetAccount(int userId);
     }
 }

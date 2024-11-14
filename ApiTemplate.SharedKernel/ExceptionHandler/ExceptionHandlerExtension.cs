@@ -76,6 +76,7 @@ namespace ApiTemplate.SharedKernel.ExceptionHandler
                 {
                     var logger = app.ApplicationServices.GetRequiredService<ILogger<Exception>>();
                     logger.LogError(exception, exception.Message);
+
                     var exceptionType = exception.GetType();
                     if (_exceptionHandlers.ContainsKey(exceptionType))
                         await _exceptionHandlers[exceptionType].Invoke(httpContext, exception);

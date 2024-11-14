@@ -33,13 +33,13 @@ try
     LoggerConfiguration ProvideConfiguration(LoggerConfiguration l)
     {
         l = l.ReadFrom.Configuration(builder.Configuration)
-              .Enrich.FromLogContext()
-              .Enrich.WithExceptionDetails()
-              .Enrich.WithMachineName()
-              .Enrich.WithElasticApmCorrelationInfo()
-              .Enrich.WithProperty("Environment", Config.Env)
-              .WriteTo.Console()
-              .WriteTo.File(@"Logs\log.txt", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 31);
+             .Enrich.FromLogContext()
+             .Enrich.WithExceptionDetails()
+             .Enrich.WithMachineName()
+             .Enrich.WithElasticApmCorrelationInfo()
+             .Enrich.WithProperty("Environment", Config.Env)
+             .WriteTo.Console()
+             .WriteTo.File(@"Logs\log.txt", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 31);
 
         if (!Config.IntegrationTests)
             l = l.WriteTo.Elasticsearch(new ElasticsearchSinkOptions(new Uri(builder.Configuration["ElasticConfiguration:Uri"]))
@@ -67,8 +67,6 @@ try
                     .AddSharedKernel();
 
     var webApplication = builder.Build();
-
-    webApplication.UseHttpLogging();
 
     webApplication.UseElasticApm(builder.Configuration,
                                  new HttpDiagnosticsSubscriber(),  /* Enable tracing of outgoing HTTP requests */

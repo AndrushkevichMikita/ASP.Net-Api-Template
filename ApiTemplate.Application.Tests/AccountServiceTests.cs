@@ -167,7 +167,7 @@ namespace ApiTemplate.Application.Tests
             var email = "test@example.com";
             var accountEntity = new AccountEntity { Id = 1, Email = email, FirstName = "John", LastName = "Doe" };
 
-            _userTokenRepoMock.Setup(x => x.GetIQueryable())
+            _userTokenRepoMock.Setup(x => x.GetIQueryable(false))
                               .Returns(IQueryableExtension.AsAsyncQueryable(new List<AccountTokenEntity>() { new() }));
 
             _userManagerMock.Setup(x => x.FindByEmailAsync(email))
@@ -200,7 +200,7 @@ namespace ApiTemplate.Application.Tests
             _mapperMock.Setup(x => x.Map<AccountDTO>(accountEntity))
                        .Returns(accountDto);
             // Act
-            var result = await _accountService.GetCurrent(userId);
+            var result = await _accountService.GetAccount(userId);
 
             // Assert
             Assert.NotNull(result);
@@ -214,7 +214,7 @@ namespace ApiTemplate.Application.Tests
             var email = "test@example.com";
             var accountEntity = new AccountEntity { Id = 1, Email = email, FirstName = "First", LastName = "Last" };
 
-            _userTokenRepoMock.Setup(x => x.GetIQueryable())
+            _userTokenRepoMock.Setup(x => x.GetIQueryable(false))
                              .Returns(IQueryableExtension.AsAsyncQueryable(new List<AccountTokenEntity>() { new() }));
 
             _userManagerMock.Setup(x => x.FindByEmailAsync(email))
@@ -238,7 +238,7 @@ namespace ApiTemplate.Application.Tests
             var accountEntity = new AccountEntity { Id = 1, Email = "test@example.com" };
             var accountTokenEntity = new AccountTokenEntity { UserId = 1, Name = digitCode, Value = "token_value", User = accountEntity, LoginProvider = TokenEnum.EmailToken.ToString() };
 
-            _userTokenRepoMock.Setup(x => x.GetIQueryable())
+            _userTokenRepoMock.Setup(x => x.GetIQueryable(false))
                               .Returns(IQueryableExtension.AsAsyncQueryable(new List<AccountTokenEntity> { accountTokenEntity }));
 
             _userManagerMock.Setup(x => x.ConfirmEmailAsync(accountEntity, accountTokenEntity.Value))
@@ -265,12 +265,13 @@ namespace ApiTemplate.Application.Tests
             _userManagerMock.Setup(x => x.CheckPasswordAsync(accountEntity, password))
                             .ReturnsAsync(true);
             // Act
-            await _accountService.Delete(password, accountId);
+            await _accountService.DeleteAccount(password, accountId);
 
             // Assert
             _userManagerMock.Verify(x => x.DeleteAsync(accountEntity), Times.Once);
 
         }
+
         [Fact]
         public async Task CreateNewJwtPair_ShouldReturnNewTokens_WhenRefreshTokenIsValid()
         {
@@ -283,11 +284,10 @@ namespace ApiTemplate.Application.Tests
                             .ReturnsAsync(accountEntity);
 
             _signInManager.Setup(x => x.GenerateJwtTokenAsync(accountEntity))
-                .ReturnsAsync("new_jwt_token");
+                          .ReturnsAsync("new_jwt_token");
 
             _signInManager.Setup(x => x.GenerateRefreshTokenAsync(accountEntity))
-                .ReturnsAsync("new_refresh_token");
-
+                          .ReturnsAsync("new_refresh_token");
             // Act
             var result = await _accountService.CreateNewJwtPair(refreshTokenDto, userId);
 

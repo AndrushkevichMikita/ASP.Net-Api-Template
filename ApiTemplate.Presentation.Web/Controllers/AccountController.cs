@@ -37,7 +37,7 @@ namespace ApiTemplate.Presentation.Web.Controllers
         [HttpGet()]
         public async Task<AccountModel> GetCurrent()
         {
-            var dto = await _account.GetCurrent(CurrentUser.Id);
+            var dto = await _account.GetAccount(CurrentUser.Id);
             return _mapper.Map<AccountModel>(dto);
         }
 
@@ -92,12 +92,12 @@ namespace ApiTemplate.Presentation.Web.Controllers
         }
 
         /// <summary>
-        /// Delete user if password verification is successful
+        /// DeleteAccount user if password verification is successful
         /// </summary>
         /// <param name="password"></param>
         /// <returns></returns>
         [HttpDelete()]
         public async Task Delete([FromBody] string password)
-            => await _account.Delete(password, CurrentUser.Id);
+            => await _account.DeleteAccount(password, CurrentUser.Id);
     }
 }

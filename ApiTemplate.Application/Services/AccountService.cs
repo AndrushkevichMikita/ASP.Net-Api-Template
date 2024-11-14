@@ -25,10 +25,27 @@ namespace ApiTemplate.Application.Services
             _mapper = mapper;
         }
 
-        private static string GenerateCode()
+        public Task SignOut()
         {
-            var code = new Random().Next(1111, 9999).ToString("D4");
-            return code;
+            return _signInManager.SignOutAsync();
+        }
+
+        public async Task<AccountDTO> GetAccount(int userId)
+        {
+            var appUser = await _signInManager.UserManager.FindByIdAsync(userId.ToString()) ?? throw new MyApplicationException(ErrorStatus.NotFound, "User not found");
+            return _mapper.Map<AccountDTO>(appUser);
+        }
+
+        public async Task CreateAccount(CreateAccountDTO model)
+        {
+            await DeleteSameNotConfirmed(model.Email);
+
+            var toInsert = _mapper.Map<AccountEntity>(model);
+
+            var res = await _signInManager.UserManager.CreateAsync(toInsert, model.Password);
+            if (!res.Succeeded) throw new MyApplicationException(ErrorStatus.InvalidData, string.Join(" ", res.Errors.Select(c => c.Description)));
+
+            await _signInManager.UserManager.AddToRoleAsync(toInsert, model.Role.ToString());
         }
 
         private async Task<AccountEntity> DeleteSameNotConfirmed(string email)
@@ -43,18 +60,6 @@ namespace ApiTemplate.Application.Services
             return existingUser;
         }
 
-        private async Task<RefreshTokenDTO> CreateNewJwtPair(AccountEntity appUser)
-        {
-            return new RefreshTokenDTO
-            {
-                Token = await _signInManager.GenerateJwtTokenAsync(appUser),
-                RefreshToken = await _signInManager.GenerateRefreshTokenAsync(appUser)
-            };
-        }
-
-        public Task SignOut()
-            => _signInManager.SignOutAsync();
-
         public async Task<RefreshTokenDTO> LoginAccount(LoginAccountDTO model)
         {
             var appUser = await _signInManager.UserManager.FindByEmailAsync(model.Email) ?? throw new MyApplicationException(ErrorStatus.NotFound, "User not found");
@@ -66,21 +71,23 @@ namespace ApiTemplate.Application.Services
             return await CreateNewJwtPair(appUser);
         }
 
-        public async Task CreateAccount(CreateAccountDTO model)
-        {
-            await DeleteSameNotConfirmed(model.Email);
-
-            var toInsert = _mapper.Map<AccountEntity>(model);
-            var res = await _signInManager.UserManager.CreateAsync(toInsert, model.Password);
-            if (!res.Succeeded) throw new MyApplicationException(ErrorStatus.InvalidData, string.Join(" ", res.Errors.Select(c => c.Description)));
-            await _signInManager.UserManager.AddToRoleAsync(toInsert, model.Role.ToString());
-        }
-
-        public async Task<AccountDTO> GetCurrent(int userId)
+        public async Task<RefreshTokenDTO> CreateNewJwtPair(RefreshTokenDTO model, int userId)
         {
             var appUser = await _signInManager.UserManager.FindByIdAsync(userId.ToString());
-            if (appUser is null) return null;
-            return _mapper.Map<AccountDTO>(appUser);
+
+            if (appUser == null || appUser.RefreshToken != model.RefreshToken || appUser.RefreshTokenExpiryTime <= DateTime.UtcNow)
+                throw new MyApplicationException(ErrorStatus.Unauthorized);
+
+            return await CreateNewJwtPair(appUser);
+        }
+
+        private async Task<RefreshTokenDTO> CreateNewJwtPair(AccountEntity appUser)
+        {
+            return new RefreshTokenDTO
+            {
+                Token = await _signInManager.GenerateJwtTokenAsync(appUser),
+                RefreshToken = await _signInManager.GenerateRefreshTokenAsync(appUser)
+            };
         }
 
         public async Task SendDigitCodeByEmail(string email)
@@ -94,7 +101,7 @@ namespace ApiTemplate.Application.Services
             if (userEmailTokens != null)
                 await _userTokenRepo.DeleteAsync(userEmailTokens);
 
-            var digitCode = GenerateCode();
+            var digitCode = new Random().Next(1111, 9999).ToString("D4");
 
             await _userTokenRepo.InsertAsync(new AccountTokenEntity
             {
@@ -131,22 +138,14 @@ namespace ApiTemplate.Application.Services
             await _userTokenRepo.DeleteAsync(token, true);
         }
 
-        public async Task Delete(string password, int accountId)
+        public async Task DeleteAccount(string password, int accountId)
         {
             var account = await _signInManager.UserManager.FindByIdAsync(accountId.ToString());
+
             var res = await _signInManager.UserManager.CheckPasswordAsync(account, password);
             if (!res) throw new MyApplicationException(ErrorStatus.InvalidData, "Password invalid");
+
             await _signInManager.UserManager.DeleteAsync(account);
-        }
-
-        public async Task<RefreshTokenDTO> CreateNewJwtPair(RefreshTokenDTO model, int userId)
-        {
-            var appUser = await _signInManager.UserManager.FindByIdAsync(userId.ToString());
-
-            if (appUser == null || appUser.RefreshToken != model.RefreshToken || appUser.RefreshTokenExpiryTime <= DateTime.UtcNow)
-                throw new MyApplicationException(ErrorStatus.Unauthorized);
-
-            return await CreateNewJwtPair(appUser);
         }
     }
 }

@@ -58,16 +58,11 @@ namespace ApiTemplate.Infrastructure.Repositories
             });
         }
 
-        public virtual IQueryable<TEntity> GetIQueryable(bool asNoTracking)
+        public virtual IQueryable<TEntity> GetIQueryable(bool asNoTracking = false)
         {
             if (asNoTracking)
-                return GetIQueryable().AsNoTracking();
+                return DbSet.AsQueryable().AsNoTracking();
 
-            return GetIQueryable();
-        }
-
-        public virtual IQueryable<TEntity> GetIQueryable()
-        {
             return DbSet.AsQueryable();
         }
 
