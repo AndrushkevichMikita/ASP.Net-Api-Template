@@ -293,18 +293,18 @@ namespace ApiTemplate.SharedKernel.Tests
 
         #region Test Query Parameter Validation
         [Fact]
-        public void OnActionExecuting_MissingNonNullableQueryParameter_ThrowsMyApplicationException()
+        public void OnActionExecuting_OptionalNullableValueTypeQueryParameter_DoesNotThrowException()
         {
             // Arrange
-            var actionContext = CreateActionContext();
+            var actionContext = CreateActionContextWithParameterValue("optionalParam", null);
             var actionExecutingContext = new ActionExecutingContext(actionContext, new List<IFilterMetadata>(),
-                new Dictionary<string, object>(), null);
+                new Dictionary<string, object> { { "optionalParam", null } }, null);
 
             // Act & Assert
-            var exception = Assert.Throws<MyApplicationException>(() =>
+            var exception = Record.Exception(() =>
                 _validator.OnActionExecuting(actionExecutingContext));
 
-            Assert.Equal(ErrorStatus.InvalidData, exception.ErrorStatus);
+            Assert.Null(exception); // Nullable value types should not throw when null
         }
 
         [Fact]

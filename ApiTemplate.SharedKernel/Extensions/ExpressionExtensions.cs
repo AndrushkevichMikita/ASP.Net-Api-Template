@@ -42,12 +42,11 @@ namespace ApiTemplate.SharedKernel.Extensions
         }
 
         public static IQueryable<TSource> WhereCompare<TSource, TResult, T1>(
-         this IQueryable<TSource> source,
-         Expression<Func<TSource, TResult>> predicate,
-         Conditions condition,
-         T1 Value,
-         object Value2 = null
-         )
+            this IQueryable<TSource> source,
+            Expression<Func<TSource, TResult>> predicate,
+            Conditions condition,
+            T1 Value,
+            object Value2 = null)
         {
             var l = predicate.Body;
             var r = Expression.Constant(Value, l.Type);
