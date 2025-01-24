@@ -32,7 +32,9 @@ namespace ApiTemplate.Application.Services
 
         public async Task<AccountDTO> GetAccount(int userId)
         {
-            var appUser = await _signInManager.UserManager.FindByIdAsync(userId.ToString()) ?? throw new MyApplicationException(ErrorStatus.NotFound, "User not found");
+            var appUser = await _signInManager.UserManager.FindByIdAsync(userId.ToString())
+                ?? throw new MyApplicationException(ErrorStatus.NotFound, "User not found");
+
             return _mapper.Map<AccountDTO>(appUser);
         }
 
@@ -43,7 +45,8 @@ namespace ApiTemplate.Application.Services
             var toInsert = _mapper.Map<AccountEntity>(model);
 
             var res = await _signInManager.UserManager.CreateAsync(toInsert, model.Password);
-            if (!res.Succeeded) throw new MyApplicationException(ErrorStatus.InvalidData, string.Join(" ", res.Errors.Select(c => c.Description)));
+            if (!res.Succeeded)
+                throw new MyApplicationException(ErrorStatus.InvalidData, string.Join(" ", res.Errors.Select(c => c.Description)));
 
             await _signInManager.UserManager.AddToRoleAsync(toInsert, model.Role.ToString());
         }
@@ -51,9 +54,10 @@ namespace ApiTemplate.Application.Services
         private async Task<AccountEntity> DeleteSameNotConfirmed(string email)
         {
             var existingUser = await _signInManager.UserManager.FindByEmailAsync(email);
-            if (existingUser == null) return null;
+            if (existingUser == null)
+                return null;
 
-            if (existingUser.EmailConfirmed)
+            if (await existingUser.IsEmailConfirmedAsync(_signInManager.UserManager))
                 throw new MyApplicationException(ErrorStatus.InvalidData, "User already exists");
 
             await _signInManager.UserManager.DeleteAsync(existingUser);
@@ -62,11 +66,15 @@ namespace ApiTemplate.Application.Services
 
         public async Task<RefreshTokenDTO> LoginAccount(LoginAccountDTO model)
         {
-            var appUser = await _signInManager.UserManager.FindByEmailAsync(model.Email) ?? throw new MyApplicationException(ErrorStatus.NotFound, "User not found");
-            if (!await _signInManager.UserManager.IsEmailConfirmedAsync(appUser)) throw new MyApplicationException(ErrorStatus.InvalidData, "Email unconfirmed");
+            var appUser = await _signInManager.UserManager.FindByEmailAsync(model.Email)
+                ?? throw new MyApplicationException(ErrorStatus.NotFound, "User not found");
+
+            if (!await appUser.IsEmailConfirmedAsync(_signInManager.UserManager))
+                throw new MyApplicationException(ErrorStatus.InvalidData, "Email unconfirmed");
 
             var res = await _signInManager.PasswordSignInAsync(appUser, model.Password, model.RememberMe, false);
-            if (!res.Succeeded) throw new MyApplicationException(ErrorStatus.InvalidData, "Password or user invalid");
+            if (!res.Succeeded)
+                throw new MyApplicationException(ErrorStatus.InvalidData, "Password or user invalid");
 
             return await CreateNewJwtPair(appUser);
         }
@@ -75,8 +83,7 @@ namespace ApiTemplate.Application.Services
         {
             var appUser = await _signInManager.UserManager.FindByIdAsync(userId.ToString());
 
-            if (appUser == null || appUser.RefreshToken != model.RefreshToken || appUser.RefreshTokenExpiryTime <= DateTime.UtcNow)
-                throw new MyApplicationException(ErrorStatus.Unauthorized);
+            AccountEntity.ValidateRefreshToken(appUser, model.RefreshToken);
 
             return await CreateNewJwtPair(appUser);
         }
@@ -92,7 +99,9 @@ namespace ApiTemplate.Application.Services
 
         public async Task SendDigitCodeByEmail(string email)
         {
-            var appUser = await _signInManager.UserManager.FindByEmailAsync(email) ?? throw new MyApplicationException(ErrorStatus.NotFound, "User not found");
+            var appUser = await _signInManager.UserManager.FindByEmailAsync(email)
+                ?? throw new MyApplicationException(ErrorStatus.NotFound, "User not found");
+
             var asString = TokenEnum.EmailToken.ToString();
 
             var userEmailTokens = await _userTokenRepo.GetIQueryable()
@@ -103,13 +112,9 @@ namespace ApiTemplate.Application.Services
 
             var digitCode = new Random().Next(1111, 9999).ToString("D4");
 
-            await _userTokenRepo.InsertAsync(new AccountTokenEntity
-            {
-                UserId = appUser.Id,
-                Name = digitCode,
-                LoginProvider = asString,
-                Value = await _signInManager.UserManager.GenerateEmailConfirmationTokenAsync(appUser)
-            }, true);
+            var token = await AccountTokenEntity.Create(appUser, digitCode, asString, _signInManager.UserManager);
+
+            await _userTokenRepo.InsertAsync(token, true);
 
             await _emailTemplateService.SendDigitCodeAsync(new EmailDTO
             {
@@ -127,13 +132,11 @@ namespace ApiTemplate.Application.Services
                                              .Where(x => x.Name == digitCode && x.LoginProvider == TokenEnum.EmailToken.ToString())
                                              .ToListAsync();
 
-            if (tokens.Count > 1 || tokens.Count == 0)
-                throw new MyApplicationException(ErrorStatus.InvalidData, "This code is invalid, please request a new one");
+            AccountTokenEntity.EnsureNoDuplicateTokensByNameAndProvider(tokens);
 
             var token = tokens.First();
-            var result = await _signInManager.UserManager.ConfirmEmailAsync(token.User, token.Value);
-            if (!result.Succeeded)
-                throw new MyApplicationException(ErrorStatus.InvalidData, result.Errors.FirstOrDefault()!.Description);
+
+            await token.User.ConfirmEmailAsync(_signInManager.UserManager, token);
 
             await _userTokenRepo.DeleteAsync(token, true);
         }

@@ -18,7 +18,8 @@ namespace ApiTemplate.Application.Services
         private readonly UserManager<AccountEntity> _userManager;
         private readonly ApplicationUserClaimsPrincipalFactory _applicationUserClaimsPrincipalFactory;
 
-        public ApplicationSignInManager(UserManager<AccountEntity> userManager,
+        public ApplicationSignInManager(
+            UserManager<AccountEntity> userManager,
             IHttpContextAccessor contextAccessor,
             IUserClaimsPrincipalFactory<AccountEntity> claimsFactory,
             IConfiguration configuration,
