@@ -79,7 +79,7 @@ namespace ApiTemplate.Application.Services
             return await CreateNewJwtPair(appUser);
         }
 
-        public async Task<RefreshTokenDTO> CreateNewJwtPair(RefreshTokenDTO model, int userId)
+        public async Task<RefreshTokenDTO> CreateNewJWTPair(RefreshTokenDTO model, int userId)
         {
             var appUser = await _signInManager.UserManager.FindByIdAsync(userId.ToString());
 
@@ -112,7 +112,7 @@ namespace ApiTemplate.Application.Services
 
             var digitCode = new Random().Next(1111, 9999).ToString("D4");
 
-            var token = await AccountTokenEntity.Create(appUser, digitCode, asString, _signInManager.UserManager);
+            var token = await AccountTokenEntity.CreateAsync(appUser, digitCode, asString, _signInManager.UserManager);
 
             await _userTokenRepo.InsertAsync(token, true);
 
