@@ -7,7 +7,7 @@ namespace ApiTemplate.Domain.Entities
     [Table("AspNetUserTokens")]
     public class AccountTokenEntity : IdentityUserToken<int>
     {
-        public AccountEntity User { get; init; }
+        public AccountEntity User { get; private set; }
 
         public static AccountTokenEntity Create(
            int userId,
@@ -24,7 +24,7 @@ namespace ApiTemplate.Domain.Entities
             };
         }
 
-        public static async Task<AccountTokenEntity> CreateAsync(
+        public static async Task<AccountTokenEntity> Create(
             AccountEntity user,
             string name,
             string loginProvider,
@@ -32,10 +32,9 @@ namespace ApiTemplate.Domain.Entities
         {
             return new AccountTokenEntity
             {
-                Name = name,
-                User = user,
                 UserId = user.Id,
                 LoginProvider = loginProvider,
+                Name = name,
                 Value = await userManager.GenerateEmailConfirmationTokenAsync(user),
             };
         }
@@ -48,7 +47,7 @@ namespace ApiTemplate.Domain.Entities
 
             var tokenNames = tokens.Select(c => c.Name).ToList();
             var hasNoDuplicatesByName = tokenNames.Distinct().Count() == tokenNames.Count;
-            if (!hasNoDuplicatesByName)
+            if (hasNoDuplicatesByName)
                 throw new DomainException("This code is invalid, please request a new one");
         }
     }
