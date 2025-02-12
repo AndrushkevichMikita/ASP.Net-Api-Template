@@ -30,9 +30,8 @@ try
     // applying appsettings
     builder.Configuration.ApplyConfiguration();
 
-    LoggerConfiguration ProvideConfiguration(LoggerConfiguration l = null)
+    LoggerConfiguration ProvideConfiguration(LoggerConfiguration l)
     {
-        l ??= new LoggerConfiguration();
         l = l.ReadFrom.Configuration(builder.Configuration)
              .Enrich.FromLogContext()
              .Enrich.WithExceptionDetails()
@@ -54,7 +53,6 @@ try
     };
 
     // configure Serilog + Elasticsearch as sink for Serilog
-    Log.Logger = new LoggerConfiguration().CreateLogger();
     builder.Host.UseSerilog((ctx, lc) => ProvideConfiguration(lc));
 
     builder.Services.AddScheduler(new List<SchedulerItem>
