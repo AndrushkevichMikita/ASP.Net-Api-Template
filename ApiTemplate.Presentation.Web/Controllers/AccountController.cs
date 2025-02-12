@@ -27,7 +27,7 @@ namespace ApiTemplate.Presentation.Web.Controllers
         public async Task<RefreshTokenModel> RefreshToken([FromBody] RefreshTokenModel model)
         {
             var dto = _mapper.Map<RefreshTokenDTO>(model);
-            return _mapper.Map<RefreshTokenModel>(await _account.CreateNewJwtPair(dto, CurrentUser.Id));
+            return _mapper.Map<RefreshTokenModel>(await _account.CreateNewJWTPair(dto, CurrentUser.Id));
         }
 
         /// <summary>
