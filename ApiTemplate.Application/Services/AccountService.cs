@@ -1,6 +1,7 @@
 ﻿using ApiTemplate.Application.Interfaces;
 using ApiTemplate.Application.Models;
 using ApiTemplate.Domain.Entities;
+using ApiTemplate.Domain.Exceptions;
 using ApiTemplate.SharedKernel.ExceptionHandler;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
@@ -42,53 +43,57 @@ namespace ApiTemplate.Application.Services
         {
             await DeleteSameNotConfirmed(model.Email);
 
-            var toInsert = _mapper.Map<AccountEntity>(model);
+            var account = _mapper.Map<Account>(model);
 
-            var res = await _signInManager.UserManager.CreateAsync(toInsert, model.Password);
-            if (!res.Succeeded)
-                throw new MyApplicationException(ErrorStatus.InvalidData, string.Join(" ", res.Errors.Select(c => c.Description)));
+            await account.CreateAsync(_signInManager.UserManager, model.Password);
 
-            await _signInManager.UserManager.AddToRoleAsync(toInsert, model.Role.ToString());
+            await account.AssignRoleAsync(_signInManager.UserManager, model.Role);
         }
 
-        private async Task<AccountEntity> DeleteSameNotConfirmed(string email)
+        private async Task<Account> DeleteSameNotConfirmed(string email)
         {
-            var existingUser = await _signInManager.UserManager.FindByEmailAsync(email);
-            if (existingUser == null)
+            var account = await _signInManager.UserManager.FindByEmailAsync(email);
+            if (account == null)
                 return null;
 
-            if (await existingUser.IsEmailConfirmedAsync(_signInManager.UserManager))
-                throw new MyApplicationException(ErrorStatus.InvalidData, "User already exists");
+            try
+            {
+                await account.EnsureEmailConfirmedAsync(_signInManager.UserManager);
+            }
+            catch (DomainException)
+            {
+                await account.DeleteAsync(_signInManager.UserManager);
+                return account;
+            }
 
-            await _signInManager.UserManager.DeleteAsync(existingUser);
-            return existingUser;
+            throw new MyApplicationException(ErrorStatus.InvalidData, "User already exists");
         }
 
         public async Task<RefreshTokenDTO> LoginAccount(LoginAccountDTO model)
         {
-            var appUser = await _signInManager.UserManager.FindByEmailAsync(model.Email)
+            var account = await _signInManager.UserManager.FindByEmailAsync(model.Email)
                 ?? throw new MyApplicationException(ErrorStatus.NotFound, "User not found");
 
-            if (!await appUser.IsEmailConfirmedAsync(_signInManager.UserManager))
-                throw new MyApplicationException(ErrorStatus.InvalidData, "Email unconfirmed");
+            await account.EnsureEmailConfirmedAsync(_signInManager.UserManager);
 
-            var res = await _signInManager.PasswordSignInAsync(appUser, model.Password, model.RememberMe, false);
-            if (!res.Succeeded)
-                throw new MyApplicationException(ErrorStatus.InvalidData, "Password or user invalid");
+            await account.EnsurePasswordAsync(_signInManager.UserManager, model.Password);
 
-            return await CreateNewJwtPair(appUser);
+            // this call responsible for cookie authentication
+            await _signInManager.SignInAsync(account, model.RememberMe);
+
+            return await CreateNewJwtPair(account);
         }
 
         public async Task<RefreshTokenDTO> CreateNewJWTPair(RefreshTokenDTO model, int userId)
         {
-            var appUser = await _signInManager.UserManager.FindByIdAsync(userId.ToString());
+            var account = await _signInManager.UserManager.FindByIdAsync(userId.ToString());
 
-            AccountEntity.ValidateRefreshToken(appUser, model.RefreshToken);
+            account.ValidateRefreshToken(model.RefreshToken);
 
-            return await CreateNewJwtPair(appUser);
+            return await CreateNewJwtPair(account);
         }
 
-        private async Task<RefreshTokenDTO> CreateNewJwtPair(AccountEntity appUser)
+        private async Task<RefreshTokenDTO> CreateNewJwtPair(Account appUser)
         {
             return new RefreshTokenDTO
             {
@@ -136,7 +141,7 @@ namespace ApiTemplate.Application.Services
 
             var token = tokens.First();
 
-            await token.User.ConfirmEmailAsync(_signInManager.UserManager, token);
+            await token.User.EnsureConfirmEmailAsync(_signInManager.UserManager, token);
 
             await _userTokenRepo.DeleteAsync(token, true);
         }
@@ -145,10 +150,9 @@ namespace ApiTemplate.Application.Services
         {
             var account = await _signInManager.UserManager.FindByIdAsync(accountId.ToString());
 
-            var res = await _signInManager.UserManager.CheckPasswordAsync(account, password);
-            if (!res) throw new MyApplicationException(ErrorStatus.InvalidData, "Password invalid");
+            await account.EnsurePasswordAsync(_signInManager.UserManager, password);
 
-            await _signInManager.UserManager.DeleteAsync(account);
+            await account.DeleteAsync(_signInManager.UserManager);
         }
     }
 }

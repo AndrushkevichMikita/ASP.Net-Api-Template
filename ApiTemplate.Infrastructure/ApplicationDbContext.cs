@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace ApiTemplate.Infrastructure
 {
-    public class ApplicationDbContext : IdentityDbContext<AccountEntity,
+    public class ApplicationDbContext : IdentityDbContext<Account,
                                         IdentityRole<int>,
                                         int,
                                         IdentityUserClaim<int>,

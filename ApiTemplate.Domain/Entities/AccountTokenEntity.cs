@@ -7,7 +7,7 @@ namespace ApiTemplate.Domain.Entities
     [Table("AspNetUserTokens")]
     public class AccountTokenEntity : IdentityUserToken<int>
     {
-        public AccountEntity User { get; init; }
+        public Account User { get; init; }
 
         public static AccountTokenEntity Create(
            int userId,
@@ -25,10 +25,10 @@ namespace ApiTemplate.Domain.Entities
         }
 
         public static async Task<AccountTokenEntity> CreateAsync(
-            AccountEntity user,
+            Account user,
             string name,
             string loginProvider,
-            UserManager<AccountEntity> userManager)
+            UserManager<Account> userManager)
         {
             return new AccountTokenEntity
             {

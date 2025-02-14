@@ -9,9 +9,9 @@ namespace ApiTemplate.Application.Mappings
         public AccountProfile()
         {
             // Source => Target
-            CreateMap<AccountEntity, AccountDTO>();
+            CreateMap<Account, AccountDTO>();
 
-            CreateMap<CreateAccountDTO, AccountEntity>()
+            CreateMap<CreateAccountDTO, Account>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.RefreshToken, opt => opt.Ignore())
                 .ForMember(dest => dest.RefreshTokenExpiryTime, opt => opt.Ignore())

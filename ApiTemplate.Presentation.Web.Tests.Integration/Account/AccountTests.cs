@@ -44,8 +44,8 @@ namespace ApiTemplate.Presentation.Web.Tests.Integration.Account
         private async Task<HttpResponseMessage> ConfirmUserEmail(string code)
              => await HTTPClient.PutAsJsonAsync("api/account/digitCode", code);
 
-        private IRepository<AccountEntity> AccountRepo
-             => ServicesScope.ServiceProvider.GetRequiredService<IRepository<AccountEntity>>();
+        private IRepository<Domain.Entities.Account> AccountRepo
+             => ServicesScope.ServiceProvider.GetRequiredService<IRepository<Domain.Entities.Account>>();
 
         private IRepository<AccountTokenEntity> TokensRepo
              => ServicesScope.ServiceProvider.GetRequiredService<IRepository<AccountTokenEntity>>();

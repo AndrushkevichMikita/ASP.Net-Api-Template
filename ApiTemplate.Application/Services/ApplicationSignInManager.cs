@@ -12,21 +12,21 @@ using System.Text;
 
 namespace ApiTemplate.Application.Services
 {
-    public class ApplicationSignInManager : SignInManager<AccountEntity>
+    public class ApplicationSignInManager : SignInManager<Account>
     {
         private readonly IConfiguration _configuration;
-        private readonly UserManager<AccountEntity> _userManager;
+        private readonly UserManager<Account> _userManager;
         private readonly ApplicationUserClaimsPrincipalFactory _applicationUserClaimsPrincipalFactory;
 
         public ApplicationSignInManager(
-            UserManager<AccountEntity> userManager,
+            UserManager<Account> userManager,
             IHttpContextAccessor contextAccessor,
-            IUserClaimsPrincipalFactory<AccountEntity> claimsFactory,
+            IUserClaimsPrincipalFactory<Account> claimsFactory,
             IConfiguration configuration,
             IOptions<IdentityOptions> optionsAccessor,
-            ILogger<SignInManager<AccountEntity>> logger,
+            ILogger<SignInManager<Account>> logger,
             IAuthenticationSchemeProvider schemes,
-            IUserConfirmation<AccountEntity> confirmation,
+            IUserConfirmation<Account> confirmation,
             ApplicationUserClaimsPrincipalFactory applicationUserClaimsPrincipalFactory)
             : base(userManager, contextAccessor, claimsFactory, optionsAccessor, logger, schemes, confirmation)
         {
@@ -54,14 +54,14 @@ namespace ApiTemplate.Application.Services
                  expires: DateTime.Now.AddMinutes(int.Parse(configuration["Jwt:LifetimeMinutes"])),
                  signingCredentials: new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:Key"])), SecurityAlgorithms.HmacSha256));
 
-        public virtual async Task<string> GenerateJwtTokenAsync(AccountEntity user)
+        public virtual async Task<string> GenerateJwtTokenAsync(Account user)
         {
             var claims = await _applicationUserClaimsPrincipalFactory.GenerateAdjustedClaimsAsync(user);
             var token = CreateJWTToken(_configuration, claims.Claims);
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        public virtual async Task<string> GenerateRefreshTokenAsync(AccountEntity user)
+        public virtual async Task<string> GenerateRefreshTokenAsync(Account user)
         {
             var refreshToken = Guid.NewGuid().ToString();
             user.RefreshToken = refreshToken;

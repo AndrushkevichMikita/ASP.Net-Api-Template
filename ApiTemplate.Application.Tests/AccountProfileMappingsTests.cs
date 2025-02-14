@@ -18,8 +18,8 @@ namespace ApiTemplate.Application.Tests
         }
 
         [Theory]
-        [InlineData(typeof(AccountEntity), typeof(AccountDTO))]
-        [InlineData(typeof(CreateAccountDTO), typeof(AccountEntity))]
+        [InlineData(typeof(Account), typeof(AccountDTO))]
+        [InlineData(typeof(CreateAccountDTO), typeof(Account))]
         public void AccountProfile_MappingIsValid(Type source, Type destination)
         {
             // Arrange & Act

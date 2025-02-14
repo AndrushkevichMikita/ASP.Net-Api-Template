@@ -24,7 +24,7 @@ namespace ApiTemplate.Infrastructure.Interceptors
             if (context == null) return;
 
             var now = DateTime.UtcNow;
-            foreach (var entry in context.ChangeTracker.Entries<AccountEntity>())
+            foreach (var entry in context.ChangeTracker.Entries<Account>())
             {
                 if (entry.State == EntityState.Added)
                 {

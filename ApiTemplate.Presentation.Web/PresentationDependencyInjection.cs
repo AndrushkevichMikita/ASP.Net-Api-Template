@@ -129,7 +129,7 @@ namespace ApiTemplate.Presentation.Web
                 };
             });
 
-            services.AddDefaultIdentity<AccountEntity>(options =>
+            services.AddDefaultIdentity<Account>(options =>
             {
                 options.Password.RequireNonAlphanumeric = false;
                 options.Password.RequireDigit = true;

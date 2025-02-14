@@ -20,7 +20,7 @@ namespace ApiTemplate.Application.Tests
         private readonly Mock<IRepository<AccountTokenEntity>> _userTokenRepoMock;
         private readonly Mock<IEmailTemplateService> _emailTemplateServiceMock;
         private readonly Mock<ApplicationSignInManager> _signInManager;
-        private readonly Mock<UserManager<AccountEntity>> _userManagerMock;
+        private readonly Mock<UserManager<Account>> _userManagerMock;
         private readonly AccountService _accountService;
         private readonly Mock<IMapper> _mapperMock;
 
@@ -30,16 +30,16 @@ namespace ApiTemplate.Application.Tests
             _userTokenRepoMock = new Mock<IRepository<AccountTokenEntity>>();
             _emailTemplateServiceMock = new Mock<IEmailTemplateService>();
 
-            _userManagerMock = new Mock<UserManager<AccountEntity>>(
-                Mock.Of<IUserStore<AccountEntity>>(),
+            _userManagerMock = new Mock<UserManager<Account>>(
+                Mock.Of<IUserStore<Account>>(),
                 Mock.Of<IOptions<IdentityOptions>>(),
-                Mock.Of<IPasswordHasher<AccountEntity>>(),
-                Array.Empty<IUserValidator<AccountEntity>>(),
-                Array.Empty<IPasswordValidator<AccountEntity>>(),
+                Mock.Of<IPasswordHasher<Account>>(),
+                Array.Empty<IUserValidator<Account>>(),
+                Array.Empty<IPasswordValidator<Account>>(),
                 Mock.Of<ILookupNormalizer>(),
                 Mock.Of<IdentityErrorDescriber>(),
                 Mock.Of<IServiceProvider>(),
-                Mock.Of<ILogger<UserManager<AccountEntity>>>()
+                Mock.Of<ILogger<UserManager<Account>>>()
             );
 
             var optionsAccessorMock = Options.Create(new IdentityOptions());
@@ -47,12 +47,12 @@ namespace ApiTemplate.Application.Tests
             _signInManager = new Mock<ApplicationSignInManager>(
                 _userManagerMock.Object,
                 new Mock<IHttpContextAccessor>().Object,
-                new Mock<IUserClaimsPrincipalFactory<AccountEntity>>().Object,
+                new Mock<IUserClaimsPrincipalFactory<Account>>().Object,
                 new Mock<IConfiguration>().Object,
                 optionsAccessorMock,
-                new Mock<ILogger<SignInManager<AccountEntity>>>().Object,
+                new Mock<ILogger<SignInManager<Account>>>().Object,
                 new Mock<IAuthenticationSchemeProvider>().Object,
-                new Mock<IUserConfirmation<AccountEntity>>().Object,
+                new Mock<IUserConfirmation<Account>>().Object,
                 new ApplicationUserClaimsPrincipalFactory
                 (
                     _userManagerMock.Object,
@@ -91,7 +91,7 @@ namespace ApiTemplate.Application.Tests
             var accountDto = new LoginAccountDTO { Email = "test@example.com", Password = "password123", RememberMe = true };
 
             _userManagerMock.Setup(x => x.FindByEmailAsync(accountDto.Email))
-                            .ReturnsAsync((AccountEntity)null);
+                            .ReturnsAsync((Account)null);
             // Act & Assert
             await Assert.ThrowsAsync<MyApplicationException>(() => _accountService.LoginAccount(accountDto));
         }
@@ -101,7 +101,7 @@ namespace ApiTemplate.Application.Tests
         {
             // Arrange
             var accountDto = new LoginAccountDTO { Email = "test@example.com", Password = "Password123", RememberMe = true };
-            var accountEntity = new AccountEntity { Email = "test@example.com" };
+            var accountEntity = new Account { Email = "test@example.com" };
 
             _userManagerMock.Setup(x => x.FindByEmailAsync(accountDto.Email))
                             .ReturnsAsync(accountEntity);
@@ -109,8 +109,11 @@ namespace ApiTemplate.Application.Tests
             _userManagerMock.Setup(x => x.IsEmailConfirmedAsync(accountEntity))
                             .ReturnsAsync(true);
 
-            _signInManager.Setup(x => x.PasswordSignInAsync(accountEntity, accountDto.Password, accountDto.RememberMe, false))
-                          .ReturnsAsync(SignInResult.Success);
+            _userManagerMock.Setup(x => x.CheckPasswordAsync(accountEntity, accountDto.Password))
+                            .ReturnsAsync(true);
+
+            _signInManager.Setup(x => x.SignInAsync(accountEntity, accountDto.RememberMe, null))
+                          .Returns(Task.CompletedTask);
 
             _signInManager.Setup(x => x.GenerateJwtTokenAsync(accountEntity))
                           .ReturnsAsync("jwt_token");
@@ -131,8 +134,8 @@ namespace ApiTemplate.Application.Tests
         {
             // Arrange
             var accountDto = new CreateAccountDTO { Email = "test@example.com", Password = "password123", Role = RoleEnum.Admin };
-            var accountEntity = new AccountEntity { Email = accountDto.Email, Role = accountDto.Role };
-            _mapperMock.Setup(x => x.Map<AccountEntity>(accountDto)).Returns(accountEntity);
+            var accountEntity = new Account { Email = accountDto.Email, Role = accountDto.Role };
+            _mapperMock.Setup(x => x.Map<Account>(accountDto)).Returns(accountEntity);
 
             _userManagerMock.Setup(x => x.CreateAsync(accountEntity, accountDto.Password))
                             .ReturnsAsync(IdentityResult.Success);
@@ -143,7 +146,7 @@ namespace ApiTemplate.Application.Tests
             await _accountService.CreateAccount(accountDto);
 
             // Assert
-            _mapperMock.Verify(x => x.Map<AccountEntity>(accountDto), Times.Once);
+            _mapperMock.Verify(x => x.Map<Account>(accountDto), Times.Once);
             _userManagerMock.Verify(x => x.CreateAsync(accountEntity, accountDto.Password), Times.Once);
             _userManagerMock.Verify(x => x.AddToRoleAsync(accountEntity, accountDto.Role.ToString()), Times.Once);
         }
@@ -155,7 +158,7 @@ namespace ApiTemplate.Application.Tests
             var email = "test@example.com";
 
             _userManagerMock.Setup(x => x.FindByEmailAsync(email))
-                            .ReturnsAsync((AccountEntity)null);
+                            .ReturnsAsync((Account)null);
             // Act & Assert
             await Assert.ThrowsAsync<MyApplicationException>(() => _accountService.SendDigitCodeByEmail(email));
         }
@@ -165,7 +168,7 @@ namespace ApiTemplate.Application.Tests
         {
             // Arrange
             var email = "test@example.com";
-            var accountEntity = new AccountEntity { Id = 1, Email = email, FirstName = "John", LastName = "Doe" };
+            var accountEntity = new Account { Id = 1, Email = email, FirstName = "John", LastName = "Doe" };
 
             var accountTokenEntity = AccountTokenEntity.Create(1, "", TokenEnum.EmailToken.ToString(), "token_value");
 
@@ -193,7 +196,7 @@ namespace ApiTemplate.Application.Tests
         {
             // Arrange
             var userId = 1;
-            var accountEntity = new AccountEntity { Id = userId, Email = "test@example.com" };
+            var accountEntity = new Account { Id = userId, Email = "test@example.com" };
             var accountDto = new AccountDTO { Email = "test@example.com" };
 
             _userManagerMock.Setup(x => x.FindByIdAsync(userId.ToString()))
@@ -214,7 +217,7 @@ namespace ApiTemplate.Application.Tests
         {
             // Arrange
             var email = "test@example.com";
-            var accountEntity = new AccountEntity { Id = 1, Email = email, FirstName = "First", LastName = "Last" };
+            var accountEntity = new Account { Id = 1, Email = email, FirstName = "First", LastName = "Last" };
 
             var accountTokenEntity = AccountTokenEntity.Create(1, "", TokenEnum.EmailToken.ToString(), "token_value");
 
@@ -240,7 +243,7 @@ namespace ApiTemplate.Application.Tests
             // Arrange
             var digitCode = "1234";
 
-            var accountEntity = new AccountEntity { Id = 1, Email = "test@example.com" };
+            var accountEntity = new Account { Id = 1, Email = "test@example.com" };
 
             _userManagerMock.Setup(x => x.GenerateEmailConfirmationTokenAsync(accountEntity))
                          .ReturnsAsync("email_confirmation_token");
@@ -266,10 +269,13 @@ namespace ApiTemplate.Application.Tests
             // Arrange
             var password = "Password123";
             var accountId = 1;
-            var accountEntity = new AccountEntity { Id = accountId, Email = "test@example.com" };
+            var accountEntity = new Account { Id = accountId, Email = "test@example.com" };
 
             _userManagerMock.Setup(x => x.FindByIdAsync(accountId.ToString()))
                             .ReturnsAsync(accountEntity);
+
+            _userManagerMock.Setup(x => x.DeleteAsync(accountEntity))
+                            .ReturnsAsync(IdentityResult.Success);
 
             _userManagerMock.Setup(x => x.CheckPasswordAsync(accountEntity, password))
                             .ReturnsAsync(true);
@@ -287,7 +293,7 @@ namespace ApiTemplate.Application.Tests
             // Arrange
             var userId = 1;
             var refreshTokenDto = new RefreshTokenDTO { RefreshToken = "valid_refresh_token" };
-            var accountEntity = new AccountEntity { Id = userId, RefreshToken = "valid_refresh_token", RefreshTokenExpiryTime = DateTime.UtcNow.AddMinutes(5) };
+            var accountEntity = new Account { Id = userId, RefreshToken = "valid_refresh_token", RefreshTokenExpiryTime = DateTime.UtcNow.AddMinutes(5) };
 
             _userManagerMock.Setup(x => x.FindByIdAsync(userId.ToString()))
                             .ReturnsAsync(accountEntity);

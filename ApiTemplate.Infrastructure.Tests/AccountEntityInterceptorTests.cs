@@ -19,7 +19,7 @@ namespace ApiTemplate.Infrastructure.Tests
         {
             // Arrange
             using var context = new ApplicationDbContext(CreateOptions());
-            var accountEntity = new AccountEntity { FirstName = "Test1", LastName = "Test1" };
+            var accountEntity = new Account { FirstName = "Test1", LastName = "Test1" };
 
             // Act
             context.Add(accountEntity);
@@ -35,7 +35,7 @@ namespace ApiTemplate.Infrastructure.Tests
         {
             // Arrange
             using var context = new ApplicationDbContext(CreateOptions());
-            var accountEntity = new AccountEntity { FirstName = "Test1", LastName = "Test1" };
+            var accountEntity = new Account { FirstName = "Test1", LastName = "Test1" };
 
             // Act
             context.Add(accountEntity);
@@ -51,7 +51,7 @@ namespace ApiTemplate.Infrastructure.Tests
         {
             // Arrange
             using var context = new ApplicationDbContext(CreateOptions());
-            var accountEntity = new AccountEntity { FirstName = "Test1", LastName = "Test1" };
+            var accountEntity = new Account { FirstName = "Test1", LastName = "Test1" };
 
             // Act
             context.Add(accountEntity);
