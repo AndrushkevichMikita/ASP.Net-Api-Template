@@ -91,7 +91,7 @@ namespace ApiTemplate.Presentation.Web.Tests.Integration.Account
         }
 
         [Fact]
-        public async Task Should_Confrim_User_Email_Successfully()
+        public async Task Should_Confirm_User_Email_Successfully()
         {
             // Act
             var (createAccount, sendDigitCode, confirmUserEmail, isEmailConfirmed) = await CreateAndConfirmAccount(CreateAccountModel());
