@@ -12,14 +12,14 @@ namespace ApiTemplate.SharedKernel.Extensions
             int cntToSkip = 0;
             bool execAtLeastOnce = false;
             var items = await getCnt(cntToSkip, cntToTake);
-            if (items.Count > 0)
-                do
-                {
-                    await @do(items);
-                    cntToSkip++;
-                    execAtLeastOnce = true;
-                    items = await getCnt(cntToSkip, cntToTake);
-                } while (items.Count > 1);
+
+            while (items.Count > 0)
+            {
+                await @do(items);
+                cntToSkip += cntToTake;
+                execAtLeastOnce = true;
+                items = await getCnt(cntToSkip, cntToTake);
+            }
 
             return execAtLeastOnce;
         }
