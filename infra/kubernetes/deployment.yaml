@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apitemplate
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apitemplate
+  template:
+    metadata:
+      labels:
+        app: apitemplate
+    spec:
+      containers:
+      - name: web
+        image: IMAGE_PLACEHOLDER
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apitemplate
+spec:
+  type: LoadBalancer
+  selector:
+    app: apitemplate
+  ports:
+  - port: 80
+    targetPort: 80
