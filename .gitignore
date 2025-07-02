@@ -370,3 +370,9 @@ FodyWeavers.xsd
 Web/Properties
 cicd-local.json
 Logs*.txt
+# Terraform files
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfplan
