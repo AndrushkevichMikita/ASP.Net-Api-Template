@@ -13,7 +13,7 @@ The project employs a cutting-edge technology stack, including:
 * Elastic APM for application performance tracking.
 * Testcontainers for integration testing.
 
-The application is cloud-ready, leveraging AWS as the primary cloud provider. Tools like Automapper streamline object mapping, and xUnit is used for comprehensive unit testing, ensuring code quality throughout the development process.
+The application is cloud-ready, leveraging AWS as the primary cloud provider. It is deployed on Amazon ECS using Fargate. Tools like Automapper streamline object mapping, and xUnit is used for comprehensive unit testing, ensuring code quality throughout the development process.
 
 By adhering to DDD approaches, the project emphasizes the core business logic and domain, ensuring a strong alignment between the code and the problem space it addresses.
 
@@ -27,13 +27,13 @@ This project serves as a demonstration of modern software engineering practices,
 * [ASP.Net 6.0 WebAPI](https://docs.microsoft.com/en-us/aspnet/core/release-notes/aspnetcore-6.0?view=aspnetcore-6.0);
 * [Docker](https://www.docker.com/);
 * [Elasticsearch](https://www.elastic.co/elasticsearch);
+* [Docker Hub](https://hub.docker.com/);
 * [Kibana](https://www.elastic.co/kibana);
 * [Elastic Application Performance Monitoring (APM)](https://www.elastic.co/observability/application-performance-monitoring);
 * [MSSQL](https://www.microsoft.com/en-us/sql-server/sql-server-2017?rtc=1);
 * [Entity Framework](https://entityframeworkcore.com);
 * [Identity Server Core](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity?view=aspnetcore-6.0);
-* [AWS - as a cloud provider](https://aws.amazon.com/);
-* [Automapper](https://automapper.org/);
+* [Amazon ECS](https://aws.amazon.com/ecs/);
 * [Testcontainers](https://testcontainers.com/);
 * [xUnit](https://xunit.net/);
 
@@ -93,3 +93,30 @@ In case if you need to introduce new migrations or remove old ones:
     ```
     dotnet ef migrations add <name of migration> --startup-project Web --project Infrastructure
     ```
+
+
+### AWS Deployment
+
+Continuous deployment to Amazon ECS is handled by the `aws-terraform-ci-cd.yml` workflow. After the test workflow succeeds, this pipeline builds the Docker image, pushes it to Amazon ECR, and applies the Terraform configuration to update the ECS service. The Terraform scripts deploy the web API along with containers for MSSQL, Elasticsearch, Kibana and the Elastic APM server so the entire stack runs inside one ECS task.
+
+### AWS CI/CD Secrets
+
+The AWS pipeline requires the following GitHub repository secrets:
+
+| Secret Name | Purpose |
+|-------------|---------|
+| `AWS_ACCESS_KEY_ID` | Access key used for AWS authentication |
+| `AWS_SECRET_ACCESS_KEY` | Secret key associated with the access key |
+
+Define these secrets under your repository settings before running the pipeline.
+
+### AWS Infrastructure as Code
+
+Terraform configurations in `infra/terraform-aws` provision the necessary AWS resources. To execute them locally run:
+
+```bash
+terraform -chdir=infra/terraform-aws init
+terraform -chdir=infra/terraform-aws apply
+```
+
+These configurations create one ECS task running the application container and the supporting MSSQL, Elasticsearch, Kibana and APM server containers.

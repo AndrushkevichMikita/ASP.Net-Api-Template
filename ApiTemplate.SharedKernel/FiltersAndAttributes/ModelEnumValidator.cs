@@ -1,6 +1,7 @@
 ﻿using ApiTemplate.SharedKernel.ExceptionHandler;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using System.Collections;
 
 namespace ApiTemplate.SharedKernel.FiltersAndAttributes
@@ -98,17 +99,19 @@ namespace ApiTemplate.SharedKernel.FiltersAndAttributes
         /// </summary>
         private static void ValidateQueryParameters(ActionExecutingContext context)
         {
-            if (context.ActionArguments.Count != context.ActionDescriptor.Parameters.Count)
+            var missingParameters = context.ActionDescriptor.Parameters
+                       .Where(parameter => !context.ActionArguments.ContainsKey(parameter.Name) &&
+                                           parameter.BindingInfo?.BindingSource == BindingSource.Query &&
+                                           Nullable.GetUnderlyingType(parameter.ParameterType) == null &&
+                                           parameter.ParameterType != typeof(string))
+                       .Select(parameter => parameter.Name)
+                       .ToList();
+
+            if (missingParameters.Any())
             {
-                foreach (var parameter in context.ActionDescriptor.Parameters)
-                {
-                    if (!context.ActionArguments.ContainsKey(parameter.Name) &&
-                        Nullable.GetUnderlyingType(parameter.ParameterType) == null &&
-                        parameter.ParameterType != typeof(string))
-                    {
-                        throw new MyApplicationException(ErrorStatus.InvalidData, $"Query parameter '{parameter.Name}' is required.");
-                    }
-                }
+                var missingParamsMessage = string.Join(", ", missingParameters);
+                throw new MyApplicationException(ErrorStatus.InvalidData,
+                    $"Query parameters required but missing: {missingParamsMessage}");
             }
         }
     }

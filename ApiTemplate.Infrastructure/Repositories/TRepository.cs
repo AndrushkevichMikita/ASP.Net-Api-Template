@@ -15,14 +15,16 @@ namespace ApiTemplate.Infrastructure.Repositories
         /// </summary>
         const int bulkOperationStartCount = 5;
 
-        public ApplicationDbContext Context { get; set; }
+        private DbSet<TEntity> _dbSet;
+        private ApplicationDbContext Context { get; set; }
+        private static readonly ConcurrentDictionary<Type, IProperty[]> _keyPropertiesCache = new();
+        private static readonly ConcurrentDictionary<Type, Func<TEntity, object[]>> _primaryKeyAccessorCache = new();
 
         public TRepository(ApplicationDbContext appContext)
         {
             Context = appContext;
         }
 
-        private DbSet<TEntity> _dbSet;
         protected DbSet<TEntity> DbSet
         {
             get
@@ -31,9 +33,6 @@ namespace ApiTemplate.Infrastructure.Repositories
                 return _dbSet;
             }
         }
-
-        private static readonly ConcurrentDictionary<Type, IProperty[]> _keyPropertiesCache = new();
-        private static readonly ConcurrentDictionary<Type, Func<TEntity, object[]>> _primaryKeyAccessorCache = new();
 
         private IProperty[] GetPrimaryKeyProperties()
         {
@@ -59,16 +58,11 @@ namespace ApiTemplate.Infrastructure.Repositories
             });
         }
 
-        public virtual IQueryable<TEntity> GetIQueryable(bool asNoTracking)
+        public virtual IQueryable<TEntity> GetIQueryable(bool asNoTracking = false)
         {
             if (asNoTracking)
-                return GetIQueryable().AsNoTracking();
+                return DbSet.AsQueryable().AsNoTracking();
 
-            return GetIQueryable();
-        }
-
-        public virtual IQueryable<TEntity> GetIQueryable()
-        {
             return DbSet.AsQueryable();
         }
 

@@ -6,7 +6,7 @@ services:
     image: ${DOCKER_REGISTRY-}web
     build:
       context: .
-      dockerfile: ApiTemplate.Presentation.Web/Dockerfile
+      dockerfile: ./../ApiTemplate.Presentation.Web/Dockerfile
     ports:
         - "8080:80"
     networks:

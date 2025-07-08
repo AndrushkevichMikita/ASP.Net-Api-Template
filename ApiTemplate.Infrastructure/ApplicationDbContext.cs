@@ -4,12 +4,10 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Microsoft.Extensions.Logging;
-using System.Diagnostics;
 
 namespace ApiTemplate.Infrastructure
 {
-    public class ApplicationDbContext : IdentityDbContext<AccountEntity,
+    public class ApplicationDbContext : IdentityDbContext<Account,
                                         IdentityRole<int>,
                                         int,
                                         IdentityUserClaim<int>,

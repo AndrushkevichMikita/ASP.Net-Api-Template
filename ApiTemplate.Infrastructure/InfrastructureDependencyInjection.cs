@@ -3,21 +3,18 @@ using ApiTemplate.Domain.Entities;
 using ApiTemplate.Infrastructure.Interceptors;
 using ApiTemplate.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System.Net;
 
 namespace ApiTemplate.Infrastructure
 {
     public static class InfrastructureDependencyInjection
     {
-        public static IServiceCollection AddInfrastructure<TFactory>(this IServiceCollection services, IConfiguration configuration)
-               where TFactory : UserClaimsPrincipalFactory<AccountEntity, IdentityRole<int>>
+        public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddDbContext<ApplicationDbContext>((sp, options) =>
             {
@@ -25,42 +22,6 @@ namespace ApiTemplate.Infrastructure
 
                 var connection = configuration.GetConnectionString("MSSQL") ?? throw new ArgumentNullException("Db connection");
                 options.UseSqlServer(connection);
-            });
-
-            services.AddDefaultIdentity<AccountEntity>(options =>
-            {
-                options.Password.RequireNonAlphanumeric = false;
-                options.Password.RequireDigit = true;
-                options.Password.RequireLowercase = true;
-                options.Password.RequireUppercase = true;
-                options.Password.RequiredLength = 8;
-                options.User.RequireUniqueEmail = true;
-                options.User.AllowedUserNameCharacters = null;
-                options.Lockout.AllowedForNewUsers = true;
-                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(30);
-                options.Lockout.MaxFailedAccessAttempts = 6;
-            }).AddRoles<IdentityRole<int>>()
-              .AddEntityFrameworkStores<ApplicationDbContext>()
-              .AddDefaultTokenProviders()
-              .AddClaimsPrincipalFactory<TFactory>();
-
-            // TODO: Is it possible to move this cookies configuration to application\presentation layer ?
-            services.ConfigureApplicationCookie(options =>
-            {
-                options.Cookie.HttpOnly = true;
-                options.SlidingExpiration = true;
-                options.ExpireTimeSpan = TimeSpan.FromDays(1);
-                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-                options.Events.OnRedirectToLogin = context =>
-                {
-                    context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
-                    return Task.CompletedTask;
-                };
-                options.Events.OnRedirectToAccessDenied = context =>
-                {
-                    context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
-                    return Task.CompletedTask;
-                };
             });
 
             services.AddScoped(typeof(IRepository<>), typeof(TRepository<>));

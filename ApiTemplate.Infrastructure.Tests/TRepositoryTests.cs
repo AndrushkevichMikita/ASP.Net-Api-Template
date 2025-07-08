@@ -6,7 +6,7 @@ namespace ApiTemplate.Infrastructure.Tests
 {
     public class TRepositoryTests
     {
-        private readonly TRepository<AccountEntity> _repository;
+        private readonly TRepository<Account> _repository;
         private readonly ApplicationDbContext _context;
 
         public TRepositoryTests()
@@ -17,12 +17,12 @@ namespace ApiTemplate.Infrastructure.Tests
                 .Options;
 
             _context = new ApplicationDbContext(options);
-            _repository = new TRepository<AccountEntity>(_context);
+            _repository = new TRepository<Account>(_context);
         }
 
-        private static AccountEntity AccountEntity() => new() { FirstName = "Initial", LastName = "Initial" };
+        private static Account AccountEntity() => new() { FirstName = "Initial", LastName = "Initial" };
 
-        private static readonly List<AccountEntity> AccountEntities = new() { AccountEntity(), AccountEntity() };
+        private static readonly List<Account> AccountEntities = new() { AccountEntity(), AccountEntity() };
 
         [Fact]
         public async Task GetIQueryable_ReturnsQueryable()
@@ -52,7 +52,7 @@ namespace ApiTemplate.Infrastructure.Tests
             var inserted = await _repository.InsertAsync(AccountEntity(), true);
             Assert.NotNull(inserted);
 
-            var result = await _context.Set<AccountEntity>().FindAsync(1);
+            var result = await _context.Set<Account>().FindAsync(1);
             Assert.NotNull(result);
         }
 
@@ -62,7 +62,7 @@ namespace ApiTemplate.Infrastructure.Tests
             var inserted = await _repository.InsertAsync(AccountEntities, true);
             Assert.Equal(2, inserted.Count);
 
-            var result = await _context.Set<AccountEntity>().ToListAsync();
+            var result = await _context.Set<Account>().ToListAsync();
             Assert.Equal(2, result.Count);
         }
 
@@ -72,7 +72,7 @@ namespace ApiTemplate.Infrastructure.Tests
             var inserted = await _repository.InsertAsync(AccountEntity(), true);
             await _repository.DeleteAsync(inserted, true);
 
-            var result = await _context.Set<AccountEntity>().FindAsync(1);
+            var result = await _context.Set<Account>().FindAsync(1);
             Assert.Null(result);
         }
 
@@ -85,7 +85,7 @@ namespace ApiTemplate.Infrastructure.Tests
 
             await _repository.DeleteAsync(inserted, true);
 
-            var result = await _context.Set<AccountEntity>().FindAsync(1);
+            var result = await _context.Set<Account>().FindAsync(1);
             Assert.Null(result);
         }
 
@@ -96,7 +96,7 @@ namespace ApiTemplate.Infrastructure.Tests
 
             await _repository.DeleteAsync(inserted, true);
 
-            var result = await _context.Set<AccountEntity>().ToListAsync();
+            var result = await _context.Set<Account>().ToListAsync();
             Assert.Empty(result);
         }
 
@@ -109,7 +109,7 @@ namespace ApiTemplate.Infrastructure.Tests
 
             await _repository.DeleteAsync(inserted, true);
 
-            var result = await _context.Set<AccountEntity>().ToListAsync();
+            var result = await _context.Set<Account>().ToListAsync();
             Assert.Empty(result);
         }
 
@@ -126,7 +126,7 @@ namespace ApiTemplate.Infrastructure.Tests
             await _repository.UpdateAsync(inserted, true);
             Assert.Equal("Second update", inserted.FirstName);
 
-            var result = await _context.Set<AccountEntity>().FindAsync(1);
+            var result = await _context.Set<Account>().FindAsync(1);
             Assert.NotNull(result);
         }
 
@@ -147,7 +147,7 @@ namespace ApiTemplate.Infrastructure.Tests
             await _repository.UpdateAsync(inserted, true);
             Assert.Equal("Second update", inserted.FirstName);
 
-            var result = await _context.Set<AccountEntity>().FindAsync(1);
+            var result = await _context.Set<Account>().FindAsync(1);
             Assert.NotNull(result);
         }
 
@@ -168,7 +168,7 @@ namespace ApiTemplate.Infrastructure.Tests
             Assert.Equal("Second update", inserted.FirstName);
             Assert.NotEqual("Second update", inserted.LastName);
 
-            var result = await _context.Set<AccountEntity>().FindAsync(1);
+            var result = await _context.Set<Account>().FindAsync(1);
             Assert.NotNull(result);
         }
 
@@ -193,7 +193,7 @@ namespace ApiTemplate.Infrastructure.Tests
             Assert.Equal("Second update", inserted.FirstName);
             Assert.NotEqual("Second update", inserted.LastName);
 
-            var result = await _context.Set<AccountEntity>().FindAsync(1);
+            var result = await _context.Set<Account>().FindAsync(1);
             Assert.NotNull(result);
         }
 
@@ -218,7 +218,7 @@ namespace ApiTemplate.Infrastructure.Tests
             inserted = await _repository.UpdateAsync(inserted, true, CancellationToken.None);
             Assert.True(inserted.All(x => x.FirstName == "Second update"));
 
-            var result = await _context.Set<AccountEntity>().ToListAsync();
+            var result = await _context.Set<Account>().ToListAsync();
             Assert.NotNull(result);
             Assert.True(result.Count == inserted.Count);
         }
@@ -248,7 +248,7 @@ namespace ApiTemplate.Infrastructure.Tests
             inserted = await _repository.UpdateAsync(inserted, true, CancellationToken.None);
             Assert.True(inserted.All(x => x.FirstName == "Second update"));
 
-            var result = await _context.Set<AccountEntity>().ToListAsync();
+            var result = await _context.Set<Account>().ToListAsync();
             Assert.NotNull(result);
             Assert.True(result.Count == inserted.Count);
         }
@@ -278,7 +278,7 @@ namespace ApiTemplate.Infrastructure.Tests
             Assert.True(inserted.All(x => x.FirstName == "Second update"));
             Assert.True(inserted.All(x => x.LastName != "Second update"));
 
-            var result = await _context.Set<AccountEntity>().ToListAsync();
+            var result = await _context.Set<Account>().ToListAsync();
             Assert.NotNull(result);
             Assert.True(result.Count == inserted.Count);
         }
@@ -312,7 +312,7 @@ namespace ApiTemplate.Infrastructure.Tests
             Assert.True(inserted.All(x => x.FirstName == "Second update"));
             Assert.True(inserted.All(x => x.LastName != "Second update"));
 
-            var result = await _context.Set<AccountEntity>().ToListAsync();
+            var result = await _context.Set<Account>().ToListAsync();
             Assert.NotNull(result);
             Assert.True(result.Count == inserted.Count);
         }
@@ -321,7 +321,7 @@ namespace ApiTemplate.Infrastructure.Tests
         public void Dispose_DisposesContext()
         {
             _repository.Dispose();
-            Assert.Throws<ObjectDisposedException>(() => _context.Set<AccountEntity>().Find(1));
+            Assert.Throws<ObjectDisposedException>(() => _context.Set<Account>().Find(1));
         }
     }
 }

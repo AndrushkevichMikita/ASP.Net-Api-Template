@@ -1,6 +1,5 @@
 using ApiTemplate.Application;
 using ApiTemplate.Domain;
-using ApiTemplate.Domain.Services;
 using ApiTemplate.Infrastructure;
 using ApiTemplate.Presentation.Web;
 using ApiTemplate.SharedKernel;
@@ -13,7 +12,6 @@ using Elastic.Apm.DiagnosticSource;
 using Elastic.Apm.EntityFrameworkCore;
 using Elastic.Apm.SerilogEnricher;
 using Elastic.CommonSchema.Serilog;
-using Microsoft.AspNetCore.Identity;
 using Serilog;
 using Serilog.Exceptions;
 using Serilog.Sinks.Elasticsearch;
@@ -32,16 +30,17 @@ try
     // applying appsettings
     builder.Configuration.ApplyConfiguration();
 
-    LoggerConfiguration ProvideConfiguration(LoggerConfiguration l)
+    LoggerConfiguration ProvideConfiguration(LoggerConfiguration l = null)
     {
+        l ??= new LoggerConfiguration();
         l = l.ReadFrom.Configuration(builder.Configuration)
-              .Enrich.FromLogContext()
-              .Enrich.WithExceptionDetails()
-              .Enrich.WithMachineName()
-              .Enrich.WithElasticApmCorrelationInfo()
-              .Enrich.WithProperty("Environment", Config.Env)
-              .WriteTo.Console()
-              .WriteTo.File(@"Logs\log.txt", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 31);
+             .Enrich.FromLogContext()
+             .Enrich.WithExceptionDetails()
+             .Enrich.WithMachineName()
+             .Enrich.WithElasticApmCorrelationInfo()
+             .Enrich.WithProperty("Environment", Config.Env)
+             .WriteTo.Console()
+             .WriteTo.File(@"Logs\log.txt", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 31);
 
         if (!Config.IntegrationTests)
             l = l.WriteTo.Elasticsearch(new ElasticsearchSinkOptions(new Uri(builder.Configuration["ElasticConfiguration:Uri"]))
@@ -55,6 +54,7 @@ try
     };
 
     // configure Serilog + Elasticsearch as sink for Serilog
+    Log.Logger = new LoggerConfiguration().CreateLogger();
     builder.Host.UseSerilog((ctx, lc) => ProvideConfiguration(lc));
 
     builder.Services.AddScheduler(new List<SchedulerItem>
@@ -63,14 +63,12 @@ try
     });
 
     builder.Services.AddPresentation(builder.Configuration)
-                    .AddApplicationServices(builder.Configuration, IdentityConstants.ApplicationScheme)
-                    .AddInfrastructure<ApplicationUserClaimsPrincipalFactory>(builder.Configuration)
+                    .AddApplicationServices()
+                    .AddInfrastructure(builder.Configuration)
                     .AddDomain(builder.Configuration)
                     .AddSharedKernel();
 
     var webApplication = builder.Build();
-
-    webApplication.UseHttpLogging();
 
     webApplication.UseElasticApm(builder.Configuration,
                                  new HttpDiagnosticsSubscriber(),  /* Enable tracing of outgoing HTTP requests */
