@@ -112,9 +112,18 @@ resource "aws_ecs_task_definition" "web" {
         containerPort = 80
         hostPort      = 80
       }]
+      environment = [
+        { name = "ASPNETCORE_ENVIRONMENT", value = "Production" },
+      ]
+      dependsOn = [
+        {
+          containerName = "ms-sql-server"
+          condition     = "START"
+        }
+      ]
     },
     {
-      name      = "mssql"
+      name      = "ms-sql-server"
       image     = "mcr.microsoft.com/mssql/server:2017-latest-ubuntu"
       essential = false
       environment = [
@@ -190,8 +199,8 @@ resource "aws_ecs_service" "web" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets         = data.aws_subnets.default.ids
-    security_groups = [aws_security_group.web.id]
+    subnets          = data.aws_subnets.default.ids
+    security_groups  = [aws_security_group.web.id]
     assign_public_ip = true
   }
 }
