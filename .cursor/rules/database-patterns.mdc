@@ -1,0 +1,213 @@
+---
+description: "Database patterns and Entity Framework Core best practices"
+globs: ApiTemplate.Infrastructure/*.cs,ApiTemplate.Domain/Entities/*.cs
+---
+
+# Database Patterns & Entity Framework Core
+
+## 🗄️ **Database Configuration**
+
+### **Connection String Management:**
+- **Key**: `ConnectionStrings__MSSQL` (double underscore for environment variables)
+- **Provider**: Microsoft SQL Server (not PostgreSQL)
+- **Format**: `Server=server,port;Database=dbname;User Id=user;Password=pass;TrustServerCertificate=true;MultipleActiveResultSets=true`
+
+### **DbContext Configuration:**
+```csharp
+// Use ApplicationDbContext as the main context
+public class ApplicationDbContext : IdentityDbContext<Account, IdentityRole<int>, int, ...>
+
+// UTC DateTime conversion (configured globally)
+protected override void OnModelCreating(ModelBuilder builder)
+{
+    UseUtc(builder); // Converts all DateTime to UTC
+}
+```
+
+## 🏗️ **Entity Patterns**
+
+### **Domain Entity Structure:**
+```csharp
+public class Account : IdentityUser<int>
+{
+    [MaxLength(50)]
+    public string? RefreshToken { get; set; }
+    
+    public DateTime Created { get; set; }
+    public DateTime LastUpdated { get; set; }
+    
+    // Navigation properties
+    public ICollection<AccountTokenEntity> Tokens { get; set; }
+    
+    // Domain methods
+    public bool IsLocked() => LockoutEnabled && LockoutEnd?.UtcDateTime > DateTime.UtcNow;
+}
+```
+
+### **Entity Relationships:**
+```csharp
+// One-to-Many relationship
+builder.Entity<AccountTokenEntity>()
+    .HasOne(x => x.User)
+    .WithMany(x => x.Tokens)
+    .HasForeignKey(x => x.UserId);
+```
+
+## 🔄 **Migration Patterns**
+
+### **Migration Commands:**
+```bash
+# Add new migration
+dotnet ef migrations add MigrationName --project ApiTemplate.Infrastructure --startup-project ApiTemplate.Presentation.Web
+
+# Update database
+dotnet ef database update --project ApiTemplate.Infrastructure --startup-project ApiTemplate.Presentation.Web
+
+# Remove last migration
+dotnet ef migrations remove --project ApiTemplate.Infrastructure --startup-project ApiTemplate.Presentation.Web
+```
+
+### **Migration Best Practices:**
+- Always review generated migration files before applying
+- Use descriptive migration names
+- Test migrations on development database first
+- Keep migrations in `ApiTemplate.Infrastructure/Migrations/`
+
+## 🔍 **Query Patterns**
+
+### **Repository Implementation:**
+```csharp
+public class TRepository<T> : IRepository<T> where T : class
+{
+    protected readonly ApplicationDbContext _context;
+    protected readonly DbSet<T> _dbSet;
+    
+    public async Task<T?> GetByIdAsync(int id)
+    {
+        return await _dbSet.FindAsync(id);
+    }
+    
+    public async Task<IEnumerable<T>> GetAllAsync()
+    {
+        return await _dbSet.ToListAsync();
+    }
+}
+```
+
+### **Query Optimization:**
+```csharp
+// Use AsNoTracking for read-only queries
+var accounts = await _context.Accounts
+    .AsNoTracking()
+    .Where(a => a.IsActive)
+    .ToListAsync();
+
+// Use AsSplitQuery for multiple includes
+var account = await _context.Accounts
+    .Include(a => a.Tokens)
+    .AsSplitQuery()
+    .FirstOrDefaultAsync(a => a.Id == id);
+```
+
+## 🔐 **Identity Integration**
+
+### **User Management:**
+```csharp
+// Use ASP.NET Core Identity
+public class Account : IdentityUser<int>
+{
+    public RoleEnum Role { get; set; }
+    public string FirstName { get; set; }
+    public string LastName { get; set; }
+}
+
+// Role enumeration
+public enum RoleEnum
+{
+    SuperAdmin = 1,
+    Admin
+}
+```
+
+### **Token Management:**
+```csharp
+public class AccountTokenEntity : IdentityUserToken<int>
+{
+    public DateTime Created { get; set; }
+    public DateTime Expires { get; set; }
+    public string TokenType { get; set; }
+}
+```
+
+## 🚀 **Performance Patterns**
+
+### **Connection Management:**
+```csharp
+// Use dependency injection for DbContext
+services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(connectionString));
+
+// Configure connection pooling
+services.AddDbContextPool<ApplicationDbContext>(options =>
+    options.UseSqlServer(connectionString), poolSize: 100);
+```
+
+### **Query Performance:**
+```csharp
+// Use compiled queries for frequently used queries
+private static readonly Func<ApplicationDbContext, int, Task<Account?>> GetAccountById =
+    EF.CompileAsyncQuery((ApplicationDbContext context, int id) =>
+        context.Accounts.FirstOrDefault(a => a.Id == id));
+
+// Use bulk operations for large datasets
+await _context.BulkInsertAsync(accounts);
+await _context.BulkUpdateAsync(accounts);
+```
+
+## 🧪 **Testing Database**
+
+### **Integration Test Setup:**
+```csharp
+// Use in-memory database for unit tests
+services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString()));
+
+// Use test database for integration tests
+services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(testConnectionString));
+```
+
+### **Test Data Management:**
+```csharp
+// Create test data in test setup
+var testAccount = new Account
+{
+    Email = "test@example.com",
+    FirstName = "Test",
+    LastName = "User"
+};
+await _context.Accounts.AddAsync(testAccount);
+await _context.SaveChangesAsync();
+```
+
+## 🔧 **Kubernetes Database Configuration**
+
+### **MS SQL Server in Kubernetes:**
+```yaml
+# Service name for connection strings
+name: mssql-service
+port: 1433
+
+# Connection string format
+Server=mssql-service,1433;Database=apitemplate;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=true;MultipleActiveResultSets=true
+```
+
+### **Environment Variables:**
+```yaml
+# ConfigMap reference
+- name: ConnectionStrings__MSSQL
+  valueFrom:
+    configMapKeyRef:
+      name: apitemplate-config
+      key: ConnectionStrings__MSSQL
+```

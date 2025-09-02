@@ -1,0 +1,334 @@
+---
+description: "Testing guidelines and patterns for unit, integration, and end-to-end tests"
+globs: *Tests/*.cs,*Tests/**/*.cs
+---
+
+# Testing Guidelines
+
+## 🧪 **Testing Strategy**
+
+### **Test Pyramid:**
+1. **Unit Tests** (70%) - Fast, isolated, test individual components
+2. **Integration Tests** (20%) - Test component interactions
+3. **End-to-End Tests** (10%) - Test complete user workflows
+
+### **Test Project Structure:**
+```
+ApiTemplate.Application.Tests/          # Unit tests for Application layer
+ApiTemplate.Domain.Tests/              # Unit tests for Domain layer  
+ApiTemplate.Infrastructure.Tests/      # Unit tests for Infrastructure layer
+ApiTemplate.Presentation.Web.Tests/    # Unit tests for Presentation layer
+ApiTemplate.Presentation.Web.Tests.Integration/  # Integration tests
+```
+
+## 🔬 **Unit Testing Patterns**
+
+### **Test Class Structure:**
+```csharp
+[TestFixture]
+public class AccountServiceTests
+{
+    private Mock<IUserManager<Account>> _mockUserManager;
+    private Mock<IMapper> _mockMapper;
+    private AccountService _accountService;
+    
+    [SetUp]
+    public void Setup()
+    {
+        _mockUserManager = new Mock<IUserManager<Account>>();
+        _mockMapper = new Mock<IMapper>();
+        _accountService = new AccountService(_mockUserManager.Object, _mockMapper.Object);
+    }
+    
+    [Test]
+    public async Task CreateAccount_ValidInput_ReturnsAccountDTO()
+    {
+        // Arrange
+        var createDto = new CreateAccountDTO { Email = "test@example.com" };
+        var account = new Account { Email = createDto.Email };
+        var accountDto = new AccountDTO { Email = createDto.Email };
+        
+        _mockMapper.Setup(m => m.Map<Account>(createDto)).Returns(account);
+        _mockUserManager.Setup(m => m.CreateAsync(account, createDto.Password))
+                       .ReturnsAsync(IdentityResult.Success);
+        _mockMapper.Setup(m => m.Map<AccountDTO>(account)).Returns(accountDto);
+        
+        // Act
+        var result = await _accountService.CreateAccountAsync(createDto);
+        
+        // Assert
+        Assert.That(result.Email, Is.EqualTo(createDto.Email));
+        _mockUserManager.Verify(m => m.CreateAsync(account, createDto.Password), Times.Once);
+    }
+}
+```
+
+### **Naming Conventions:**
+```csharp
+// Test method naming: MethodName_Scenario_ExpectedResult
+[Test]
+public async Task CreateAccount_ValidInput_ReturnsAccountDTO()
+[Test]
+public async Task CreateAccount_InvalidEmail_ThrowsDomainException()
+[Test]
+public async Task GetAccount_NonExistentId_ReturnsNull()
+```
+
+### **AAA Pattern:**
+- **Arrange**: Set up test data and mocks
+- **Act**: Execute the method under test
+- **Assert**: Verify the results
+
+## 🔗 **Integration Testing**
+
+### **Base Integration Test:**
+```csharp
+public abstract class BaseIntegrationTest
+{
+    protected WebApplicationFactory<Program> Factory { get; private set; }
+    protected HttpClient Client { get; private set; }
+    protected ApplicationDbContext Context { get; private set; }
+    
+    [OneTimeSetUp]
+    public virtual async Task OneTimeSetUp()
+    {
+        Factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureServices(services =>
+                {
+                    // Remove real database
+                    var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
+                    if (descriptor != null) services.Remove(descriptor);
+                    
+                    // Add test database
+                    services.AddDbContext<ApplicationDbContext>(options =>
+                        options.UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString()));
+                    
+                    ConfigureServices(services);
+                });
+            });
+        
+        Client = Factory.CreateClient();
+        Context = Factory.Services.GetRequiredService<ApplicationDbContext>();
+        await Context.Database.EnsureCreatedAsync();
+    }
+    
+    protected virtual void ConfigureServices(IServiceCollection services)
+    {
+        // Override services for testing
+    }
+}
+```
+
+### **Integration Test Example:**
+```csharp
+[TestFixture]
+public class AccountTests : BaseIntegrationTest
+{
+    [Test]
+    public async Task CreateAccount_ValidInput_ReturnsCreatedAccount()
+    {
+        // Arrange
+        var createDto = new CreateAccountDTO
+        {
+            Email = "test@example.com",
+            Password = "TestPassword123!",
+            FirstName = "Test",
+            LastName = "User"
+        };
+        
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/account", createDto);
+        
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var account = await response.Content.ReadFromJsonAsync<AccountDTO>();
+        account.Email.Should().Be(createDto.Email);
+        
+        // Verify database
+        var dbAccount = await Context.Accounts.FirstOrDefaultAsync(a => a.Email == createDto.Email);
+        dbAccount.Should().NotBeNull();
+    }
+}
+```
+
+## 🎭 **Mocking Patterns**
+
+### **Mock Setup:**
+```csharp
+// Setup return values
+_mockUserManager.Setup(m => m.CreateAsync(It.IsAny<Account>(), It.IsAny<string>()))
+               .ReturnsAsync(IdentityResult.Success);
+
+// Setup with parameters
+_mockUserManager.Setup(m => m.FindByEmailAsync("test@example.com"))
+               .ReturnsAsync(new Account { Email = "test@example.com" });
+
+// Setup exceptions
+_mockUserManager.Setup(m => m.CreateAsync(It.IsAny<Account>(), It.IsAny<string>()))
+               .ThrowsAsync(new DomainException("User already exists"));
+
+// Verify calls
+_mockUserManager.Verify(m => m.CreateAsync(It.IsAny<Account>(), It.IsAny<string>()), Times.Once);
+_mockUserManager.Verify(m => m.AddToRoleAsync(It.IsAny<Account>(), "Admin"), Times.Never);
+```
+
+### **Mock Best Practices:**
+- Use `It.IsAny<T>()` for flexible parameter matching
+- Use `It.Is<T>(predicate)` for specific conditions
+- Verify important interactions
+- Don't over-mock (test real behavior when possible)
+
+## 📊 **Test Data Management**
+
+### **Test Data Builders:**
+```csharp
+public class AccountBuilder
+{
+    private Account _account = new Account();
+    
+    public AccountBuilder WithEmail(string email)
+    {
+        _account.Email = email;
+        return this;
+    }
+    
+    public AccountBuilder WithName(string firstName, string lastName)
+    {
+        _account.FirstName = firstName;
+        _account.LastName = lastName;
+        return this;
+    }
+    
+    public AccountBuilder WithRole(RoleEnum role)
+    {
+        _account.Role = role;
+        return this;
+    }
+    
+    public Account Build() => _account;
+}
+
+// Usage
+var account = new AccountBuilder()
+    .WithEmail("test@example.com")
+    .WithName("Test", "User")
+    .WithRole(RoleEnum.Admin)
+    .Build();
+```
+
+### **Test Fixtures:**
+```csharp
+[TestFixture]
+public class AccountServiceTests
+{
+    private Account _testAccount;
+    
+    [SetUp]
+    public void Setup()
+    {
+        _testAccount = new AccountBuilder()
+            .WithEmail("test@example.com")
+            .WithName("Test", "User")
+            .Build();
+    }
+}
+```
+
+## 🚀 **Performance Testing**
+
+### **Load Testing Patterns:**
+```csharp
+[Test]
+public async Task CreateAccount_ConcurrentRequests_HandlesLoad()
+{
+    var tasks = Enumerable.Range(0, 100)
+        .Select(i => Client.PostAsJsonAsync("/api/account", new CreateAccountDTO
+        {
+            Email = $"test{i}@example.com",
+            Password = "TestPassword123!",
+            FirstName = "Test",
+            LastName = "User"
+        }))
+        .ToArray();
+    
+    var responses = await Task.WhenAll(tasks);
+    
+    responses.Should().AllSatisfy(r => r.StatusCode.Should().Be(HttpStatusCode.Created));
+}
+```
+
+## 🔧 **Test Configuration**
+
+### **Test-Specific Settings:**
+```csharp
+// appsettings.Testing.json
+{
+  "ConnectionStrings": {
+    "MSSQL": "Server=(localdb)\\mssqllocaldb;Database=ApiTemplate_Test;Trusted_Connection=true;"
+  },
+  "Serilog": {
+    "MinimumLevel": {
+      "Default": "Warning"
+    }
+  }
+}
+```
+
+### **Test Environment Setup:**
+```csharp
+// In test setup
+Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Testing");
+Environment.SetEnvironmentVariable("ASPNETCORE_URLS", "http://localhost:0");
+```
+
+## 📋 **Test Organization**
+
+### **Test Categories:**
+```csharp
+[Test]
+[Category("Unit")]
+public async Task CreateAccount_ValidInput_ReturnsAccountDTO()
+
+[Test]
+[Category("Integration")]
+public async Task CreateAccount_ValidInput_ReturnsCreatedAccount()
+
+[Test]
+[Category("Performance")]
+public async Task CreateAccount_ConcurrentRequests_HandlesLoad()
+```
+
+### **Test Execution (Manual Only):**
+```bash
+# Run all tests (user must execute manually)
+dotnet test
+
+# Run specific category (user must execute manually)
+dotnet test --filter Category=Unit
+
+# Run with coverage (user must execute manually)
+dotnet test --collect:"XPlat Code Coverage"
+
+# Run specific project (user must execute manually)
+dotnet test ApiTemplate.Application.Tests
+```
+
+**⚠️ IMPORTANT: Tests should only be run with explicit user command. Never run tests automatically.**
+
+## 🎯 **Testing Best Practices**
+
+### **DO:**
+- Write tests that are fast, isolated, and repeatable
+- Use descriptive test names that explain the scenario
+- Test both success and failure cases
+- Use meaningful assertions with clear error messages
+- Keep tests simple and focused on one behavior
+
+### **DON'T:**
+- Test implementation details (test behavior instead)
+- Create overly complex test setups
+- Ignore failing tests
+- Write tests that depend on external services
+- Test framework code (test your code instead)

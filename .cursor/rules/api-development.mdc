@@ -1,0 +1,313 @@
+---
+description: "Web API development patterns and RESTful design principles"
+globs: ApiTemplate.Presentation.Web/Controllers/*.cs,ApiTemplate.Presentation.Web/Models/*.cs,ApiTemplate.Application/DTOs/*.cs
+---
+
+# Web API Development Patterns
+
+## 🎯 **RESTful API Design**
+
+### **Controller Structure:**
+```csharp
+[ApiController]
+[Route("api/[controller]")]
+[Authorize] // Global authorization
+public class AccountController : BaseController
+{
+    private readonly IAccountService _accountService;
+    private readonly IMapper _mapper;
+    
+    public AccountController(IAccountService accountService, IMapper mapper)
+    {
+        _accountService = accountService;
+        _mapper = mapper;
+    }
+}
+```
+
+### **HTTP Method Conventions:**
+```csharp
+// GET - Retrieve resources
+[HttpGet("{id}")]
+public async Task<ActionResult<AccountDTO>> GetAccount(int id)
+
+// POST - Create new resources
+[HttpPost]
+public async Task<ActionResult<AccountDTO>> CreateAccount([FromBody] CreateAccountDTO dto)
+
+// PUT - Update entire resource
+[HttpPut("{id}")]
+public async Task<ActionResult<AccountDTO>> UpdateAccount(int id, [FromBody] UpdateAccountDTO dto)
+
+// DELETE - Remove resources
+[HttpDelete("{id}")]
+public async Task<ActionResult> DeleteAccount(int id)
+```
+
+## 📝 **DTO Patterns**
+
+### **Request/Response DTOs:**
+```csharp
+// Input DTOs (requests)
+public class CreateAccountDTO
+{
+    [Required]
+    [EmailAddress]
+    public string Email { get; set; }
+    
+    [Required]
+    [MinLength(6)]
+    public string Password { get; set; }
+    
+    [Required]
+    [MaxLength(250)]
+    public string FirstName { get; set; }
+    
+    [Required]
+    [MaxLength(250)]
+    public string LastName { get; set; }
+}
+
+// Output DTOs (responses)
+public class AccountDTO
+{
+    public int Id { get; set; }
+    public string Email { get; set; }
+    public string FirstName { get; set; }
+    public string LastName { get; set; }
+    public RoleEnum Role { get; set; }
+    public DateTime Created { get; set; }
+    public DateTime LastUpdated { get; set; }
+}
+```
+
+### **DTO Naming Conventions:**
+- **Create**: `Create{Entity}DTO` (e.g., `CreateAccountDTO`)
+- **Update**: `Update{Entity}DTO` (e.g., `UpdateAccountDTO`)
+- **Response**: `{Entity}DTO` (e.g., `AccountDTO`)
+- **Specialized**: `{Purpose}{Entity}DTO` (e.g., `LoginAccountDTO`, `RefreshTokenDTO`)
+
+## 🔄 **AutoMapper Configuration**
+
+### **Mapping Profiles:**
+```csharp
+public class AccountProfile : Profile
+{
+    public AccountProfile()
+    {
+        // Entity to DTO
+        CreateMap<Account, AccountDTO>()
+            .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => $"{src.FirstName} {src.LastName}"));
+        
+        // DTO to Entity
+        CreateMap<CreateAccountDTO, Account>()
+            .ForMember(dest => dest.Created, opt => opt.MapFrom(src => DateTime.UtcNow))
+            .ForMember(dest => dest.LastUpdated, opt => opt.MapFrom(src => DateTime.UtcNow));
+    }
+}
+```
+
+### **Mapping Best Practices:**
+- Use explicit mapping for complex transformations
+- Ignore sensitive properties (passwords, tokens)
+- Use `ForMember` for custom property mappings
+- Create separate profiles for each entity
+
+## 🔐 **Authentication & Authorization**
+
+### **JWT Configuration:**
+```json
+{
+  "Jwt": {
+    "LifetimeMinutes": 30,
+    "Key": "ihopethiskeyislongenough",
+    "Issuer": "web-api-template",
+    "Audience": "web-api-template-audience",
+    "RefreshTokenExpiryDays": 7
+  }
+}
+```
+
+### **Authorization Patterns:**
+```csharp
+// Role-based authorization
+[AuthorizeRoles(RoleEnum.Admin)]
+public async Task<ActionResult> AdminOnlyAction()
+
+// Custom authorization policies
+[Authorize(Policy = nameof(IsUserLockedAuthHandler))]
+public async Task<ActionResult> ProtectedAction()
+
+// Allow anonymous for public endpoints
+[AllowAnonymous]
+[HttpPost("login")]
+public async Task<ActionResult<LoginResponseDTO>> Login([FromBody] LoginAccountDTO dto)
+```
+
+## 📊 **Response Patterns**
+
+### **Standard Response Format:**
+```csharp
+// Success responses
+return Ok(accountDTO);
+return CreatedAtAction(nameof(GetAccount), new { id = accountDTO.Id }, accountDTO);
+
+// Error responses
+return NotFound($"Account with ID {id} not found");
+return BadRequest("Invalid input data");
+return Unauthorized("Invalid credentials");
+```
+
+### **Exception Handling:**
+```csharp
+// Global exception handling in Program.cs
+webApplication.HandleExceptions();
+
+// Custom exception types
+public class DomainException : Exception
+{
+    public DomainException(string message) : base(message) { }
+}
+
+// Service layer exception handling
+public async Task<AccountDTO> CreateAccountAsync(CreateAccountDTO dto)
+{
+    try
+    {
+        var account = _mapper.Map<Account>(dto);
+        await account.CreateAsync(_userManager, dto.Password);
+        return _mapper.Map<AccountDTO>(account);
+    }
+    catch (DomainException ex)
+    {
+        throw; // Re-throw domain exceptions
+    }
+}
+```
+
+## 🚀 **Performance Optimization**
+
+### **Async/Await Patterns:**
+```csharp
+// Always use async for I/O operations
+public async Task<ActionResult<AccountDTO>> GetAccount(int id)
+{
+    var account = await _accountService.GetAccountAsync(id);
+    if (account == null)
+        return NotFound();
+    
+    return Ok(account);
+}
+```
+
+### **Response Caching:**
+```csharp
+// Enable response caching in Program.cs
+webApplication.UseResponseCaching();
+
+// Cache specific endpoints
+[ResponseCache(Duration = 300)] // 5 minutes
+[HttpGet("{id}")]
+public async Task<ActionResult<AccountDTO>> GetAccount(int id)
+```
+
+### **Compression:**
+```csharp
+// Enable response compression
+webApplication.UseResponseCompression();
+webApplication.UseCompressedStaticFiles(webApplication.Environment, webApplication.Services.GetRequiredService<IHttpContextAccessor>());
+```
+
+## 🧪 **API Testing**
+
+### **Integration Test Patterns:**
+```csharp
+[Test]
+public async Task CreateAccount_ValidInput_ReturnsCreatedAccount()
+{
+    // Arrange
+    var createDto = new CreateAccountDTO
+    {
+        Email = "test@example.com",
+        Password = "TestPassword123!",
+        FirstName = "Test",
+        LastName = "User"
+    };
+    
+    // Act
+    var response = await _client.PostAsJsonAsync("/api/account", createDto);
+    
+    // Assert
+    response.StatusCode.Should().Be(HttpStatusCode.Created);
+    var account = await response.Content.ReadFromJsonAsync<AccountDTO>();
+    account.Email.Should().Be(createDto.Email);
+}
+```
+
+### **Test Base Configuration:**
+```csharp
+// Use BaseIntegrationTest for common setup
+public class AccountTests : BaseIntegrationTest
+{
+    protected override void ConfigureServices(IServiceCollection services)
+    {
+        // Override services for testing
+        services.AddScoped<IAccountService, MockAccountService>();
+    }
+}
+```
+
+## 📋 **API Documentation**
+
+### **Swagger Configuration:**
+```csharp
+// Swagger setup in Program.cs
+webApplication.UseSwagger(c =>
+{
+    c.RouteTemplate = "api/{documentname}/swagger.json";
+});
+
+webApplication.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/api/v1/swagger.json", "asp-web-api template");
+    c.RoutePrefix = "api";
+});
+```
+
+### **API Documentation Best Practices:**
+- Use XML comments for controller methods
+- Provide example requests/responses
+- Document error responses
+- Use descriptive endpoint names
+- Group related endpoints logically
+
+## 🔧 **Health Checks**
+
+### **Health Check Endpoints:**
+```csharp
+// Configure health checks in Program.cs
+endpoints.MapHealthChecks("/health");
+
+// Custom health checks
+services.AddHealthChecks()
+    .AddDbContext<ApplicationDbContext>()
+    .AddCheck<DatabaseHealthCheck>("database");
+```
+
+### **Kubernetes Health Probes:**
+```yaml
+# Use /health endpoint for probes
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 80
+  initialDelaySeconds: 60
+  periodSeconds: 15
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 80
+  initialDelaySeconds: 30
+  periodSeconds: 10
+```

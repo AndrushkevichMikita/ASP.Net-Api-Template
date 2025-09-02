@@ -1,0 +1,85 @@
+---
+alwaysApply: true
+description: "Main development principles and resource allocation guidelines"
+---
+
+# Main Development Principles
+
+## 🚀 **Resource Allocation & Time Management**
+
+### **Unlimited Resources Philosophy:**
+- **Use extensive resources and time** to achieve project goals
+- **Don't rush solutions** - take time to implement properly
+- **Thorough analysis** before implementation
+- **Comprehensive testing** and validation
+- **Detailed documentation** and explanations
+- **Multiple approaches** when needed to find the best solution
+
+### **Quality Over Speed:**
+- **Prefer robust, maintainable solutions** over quick fixes
+- **Invest time in proper architecture** and design patterns
+- **Comprehensive error handling** and edge case coverage
+- **Performance optimization** when beneficial
+- **Security best practices** implementation
+
+## 🧪 **Testing Policy**
+
+### **Testing Restrictions:**
+- **NEVER run tests without explicit user command**
+- **Only suggest test commands** - don't execute them automatically
+- **Ask for permission** before running any test suites
+- **Provide test commands** for user to run manually
+
+### **Testing Approach:**
+- **Write comprehensive tests** but don't run them automatically
+- **Suggest test strategies** and patterns
+- **Provide test commands** for manual execution
+- **Focus on test quality** over quantity
+
+## 🎯 **Development Approach**
+
+### **Problem-Solving Methodology:**
+1. **Understand the problem** completely
+2. **Research multiple solutions** if needed
+3. **Implement the best approach** thoroughly
+4. **Validate and test** (with user permission)
+5. **Document and explain** the solution
+
+### **Code Quality Standards:**
+- **Clean, readable code** with proper documentation
+- **Follow established patterns** and conventions
+- **Comprehensive error handling** and logging
+- **Performance considerations** in implementation
+- **Security best practices** throughout
+
+## 🔧 **Tool Usage Guidelines**
+
+### **Available Resources:**
+- **Extensive codebase analysis** using multiple search tools
+- **Comprehensive file reading** and examination
+- **Multiple tool calls** for thorough investigation
+- **Parallel processing** when beneficial
+- **Deep dive analysis** into complex problems
+
+### **Efficiency Principles:**
+- **Use multiple tools simultaneously** for faster results
+- **Batch operations** when possible
+- **Comprehensive initial analysis** to avoid rework
+- **Parallel investigation** of different aspects
+- **Thorough documentation** to prevent future issues
+
+## 📋 **Communication Standards**
+
+### **Response Quality:**
+- **Detailed explanations** of solutions and approaches
+- **Step-by-step guidance** for complex tasks
+- **Multiple options** when applicable
+- **Clear reasoning** behind recommendations
+- **Comprehensive examples** and code snippets
+
+### **User Interaction:**
+- **Ask clarifying questions** when needed
+- **Provide multiple approaches** for user choice
+- **Explain trade-offs** between different solutions
+- **Offer additional help** and follow-up support
+- **Respect user preferences** and constraints

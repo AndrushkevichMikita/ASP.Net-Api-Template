@@ -1,0 +1,69 @@
+---
+alwaysApply: true
+description: "ASP.NET Web API Template Project Structure and Architecture Guidelines"
+---
+
+# ASP.NET Web API Template - Project Structure
+
+This project follows Clean Architecture principles with clear separation of concerns across multiple layers.
+
+## 🏗️ **Project Architecture**
+
+### **Core Layers:**
+- **`ApiTemplate.Domain`** - Core business entities, interfaces, and domain logic
+- **`ApiTemplate.Application`** - Application services, DTOs, and business logic orchestration  
+- **`ApiTemplate.Infrastructure`** - Data access, external services, and infrastructure concerns
+- **`ApiTemplate.Presentation.Web`** - Web API controllers, models, and presentation logic
+- **`ApiTemplate.SharedKernel`** - Common utilities, extensions, and cross-cutting concerns
+
+### **Key Files:**
+- **Entry Point**: [Program.cs](mdc:ApiTemplate.Presentation.Web/Program.cs) - Main application startup and configuration
+- **Database Context**: [ApplicationDbContext.cs](mdc:ApiTemplate.Infrastructure/ApplicationDbContext.cs) - EF Core DbContext with Identity
+- **Domain Entity**: [Account.cs](mdc:ApiTemplate.Domain/Entities/Account.cs) - Main user entity with Identity integration
+- **Configuration**: [appsettings.json](mdc:ApiTemplate.Presentation.Web/appsettings.json) - Application settings and connection strings
+
+## 🎯 **Development Guidelines**
+
+### **Dependency Direction:**
+- Domain → No dependencies (pure business logic)
+- Application → Domain only
+- Infrastructure → Domain + Application
+- Presentation → All layers (but prefer Application services)
+
+### **Naming Conventions:**
+- **Entities**: PascalCase (e.g., `Account`, `AccountTokenEntity`)
+- **DTOs**: PascalCase with "DTO" suffix (e.g., `AccountDTO`, `CreateAccountDTO`)
+- **Services**: PascalCase with "Service" suffix (e.g., `AccountService`, `SMTPService`)
+- **Interfaces**: PascalCase with "I" prefix (e.g., `IAccountService`, `IRepository`)
+
+### **Database:**
+- **Provider**: Microsoft SQL Server (not PostgreSQL)
+- **ORM**: Entity Framework Core with Identity
+- **Connection String Key**: `ConnectionStrings__MSSQL`
+- **Migrations**: Located in `ApiTemplate.Infrastructure/Migrations/`
+
+### **Testing Structure:**
+- **Unit Tests**: `*.Tests` projects for each layer
+- **Integration Tests**: `ApiTemplate.Presentation.Web.Tests.Integration`
+- **Test Base**: [BaseIntegrationTest.cs](mdc:ApiTemplate.Presentation.Web.Tests.Integration/BaseIntegrationTest.cs)
+
+## 🚀 **Key Features**
+
+### **Authentication & Authorization:**
+- ASP.NET Core Identity with JWT tokens
+- Role-based authorization (`SuperAdmin`, `Admin`)
+- Custom authorization handlers in SharedKernel
+
+### **Logging & Monitoring:**
+- Serilog with Elasticsearch integration
+- Elastic APM for performance monitoring
+- Structured logging with correlation IDs
+
+### **Health Checks:**
+- Endpoint: `/health` for Kubernetes readiness/liveness probes
+- Database connectivity checks
+- External service health monitoring
+
+### **Containerization:**
+- Docker support with multi-stage builds
+- MS SQL Server containerization support

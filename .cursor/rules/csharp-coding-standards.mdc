@@ -1,0 +1,193 @@
+---
+globs: *.cs
+description: "C# coding standards and best practices for this ASP.NET Web API project"
+---
+
+# C# Coding Standards
+
+## 🎯 **General Principles**
+
+### **Clean Architecture Compliance:**
+- **Domain Layer**: Pure business logic, no external dependencies
+- **Application Layer**: Orchestrates domain logic, defines interfaces
+- **Infrastructure Layer**: Implements external concerns (database, email, etc.)
+- **Presentation Layer**: Handles HTTP requests, minimal business logic
+
+### **Dependency Injection:**
+- Use constructor injection for all dependencies
+- Register services in appropriate `*DependencyInjection.cs` files
+- Prefer interfaces over concrete implementations
+
+## 📝 **Code Style**
+
+### **Naming Conventions:**
+```csharp
+// Classes and Interfaces
+public class AccountService : IAccountService
+public interface IRepository<T> where T : class
+
+// Methods and Properties
+public async Task<AccountDTO> CreateAccountAsync(CreateAccountDTO dto)
+public string FirstName { get; set; }
+
+// Constants and Enums
+public enum RoleEnum
+{
+    SuperAdmin = 1,
+    Admin
+}
+
+// Private fields
+private readonly IRepository<Account> _accountRepository;
+```
+
+### **Async/Await Patterns:**
+```csharp
+// Always use async/await for I/O operations
+public async Task<AccountDTO> GetAccountAsync(int id)
+{
+    var account = await _accountRepository.GetByIdAsync(id);
+    return _mapper.Map<AccountDTO>(account);
+}
+
+// Use ConfigureAwait(false) in library code
+await SomeOperationAsync().ConfigureAwait(false);
+```
+
+## 🏗️ **Entity Framework Patterns**
+
+### **DbContext Usage:**
+- Use [ApplicationDbContext.cs](mdc:ApiTemplate.Infrastructure/ApplicationDbContext.cs) as the main context
+- Configure UTC datetime conversion globally
+- Use Identity integration for user management
+
+### **Repository Pattern:**
+```csharp
+// Generic repository interface
+public interface IRepository<T> where T : class
+{
+    Task<T?> GetByIdAsync(int id);
+    Task<IEnumerable<T>> GetAllAsync();
+    Task<T> AddAsync(T entity);
+    Task UpdateAsync(T entity);
+    Task DeleteAsync(int id);
+}
+```
+
+### **Entity Configuration:**
+```csharp
+// Use Data Annotations for simple configurations
+[MaxLength(250)]
+public string FirstName { get; set; }
+
+// Use Fluent API for complex relationships
+builder.Entity<AccountTokenEntity>()
+    .HasOne(x => x.User)
+    .WithMany(x => x.Tokens)
+    .HasForeignKey(x => x.UserId);
+```
+
+## 🔐 **Security Patterns**
+
+### **Authentication & Authorization:**
+```csharp
+// Use ASP.NET Core Identity
+public class Account : IdentityUser<int>
+
+// Custom authorization attributes
+[AuthorizeRoles(RoleEnum.Admin)]
+public async Task<IActionResult> AdminOnlyAction()
+
+// JWT configuration in appsettings.json
+"Jwt": {
+    "LifetimeMinutes": 30,
+    "Key": "ihopethiskeyislongenough",
+    "Issuer": "web-api-template"
+}
+```
+
+### **Input Validation:**
+```csharp
+// Use Data Annotations
+public class CreateAccountDTO
+{
+    [Required]
+    [EmailAddress]
+    public string Email { get; set; }
+    
+    [Required]
+    [MinLength(6)]
+    public string Password { get; set; }
+}
+```
+
+## 📊 **Logging & Monitoring**
+
+### **Structured Logging:**
+```csharp
+// Use Serilog with structured logging
+_logger.LogInformation("User {UserId} created account {Email}", userId, email);
+
+// Use correlation IDs
+_logger.LogInformation("Processing request {RequestId}", correlationId);
+```
+
+### **Exception Handling:**
+```csharp
+// Custom domain exceptions
+public class DomainException : Exception
+{
+    public DomainException(string message) : base(message) { }
+}
+
+// Global exception handling in Program.cs
+webApplication.HandleExceptions();
+```
+
+## 🧪 **Testing Patterns**
+
+### **Unit Test Structure:**
+```csharp
+// Use AAA pattern (Arrange, Act, Assert)
+[Test]
+public async Task CreateAccount_ValidInput_ReturnsAccountDTO()
+{
+    // Arrange
+    var dto = new CreateAccountDTO { Email = "test@example.com" };
+    
+    // Act
+    var result = await _accountService.CreateAccountAsync(dto);
+    
+    // Assert
+    Assert.That(result.Email, Is.EqualTo(dto.Email));
+}
+```
+
+### **Integration Test Base:**
+- Use [BaseIntegrationTest.cs](mdc:ApiTemplate.Presentation.Web.Tests.Integration/BaseIntegrationTest.cs)
+- Test with real database and HTTP client
+- Use test-specific configuration
+
+## 🔧 **Configuration Management**
+
+### **appsettings.json Structure:**
+```json
+{
+  "ConnectionStrings": {
+    "MSSQL": "Server=localhost,1433;Database=webapi;..."
+  },
+  "Jwt": {
+    "LifetimeMinutes": 30,
+    "Key": "ihopethiskeyislongenough"
+  },
+  "SMTPConfiguration": {
+    "Host": "smtp.gmail.com",
+    "Port": 587
+  }
+}
+```
+
+### **Environment-Specific Configuration:**
+- Use `appsettings.Development.json` for local development
+- Use ConfigMaps in Kubernetes for containerized environments
+- Never commit sensitive data (use secrets)

@@ -1,0 +1,268 @@
+---
+description: "Development workflow, Git practices, and deployment procedures"
+alwaysApply: true
+---
+
+# Development Workflow
+
+## 🌿 **Git Workflow**
+
+### **Branch Strategy:**
+- **`main`** - Production-ready code
+- **`dev`** - Development integration branch
+- **`feature/*`** - Feature development branches
+- **`hotfix/*`** - Critical production fixes
+- **`release/*`** - Release preparation branches
+
+### **Commit Message Format:**
+```
+type(scope): description
+
+[optional body]
+
+[optional footer]
+```
+
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting, etc.)
+- `refactor`: Code refactoring
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks
+
+**Examples:**
+```
+feat(auth): add JWT token refresh functionality
+fix(api): resolve database connection timeout issue
+docs(readme): update Kubernetes deployment instructions
+refactor(domain): extract user validation logic
+```
+
+## 🚀 **Development Process**
+
+### **Feature Development:**
+1. **Create Feature Branch:**
+   ```bash
+   git checkout dev
+   git pull origin dev
+   git checkout -b feature/user-authentication
+   ```
+
+2. **Development:**
+   - Write tests first (TDD approach)
+   - Implement feature
+   - Ensure all tests pass
+   - Update documentation if needed
+
+3. **Code Review:**
+   ```bash
+   git push origin feature/user-authentication
+   # Create Pull Request to dev branch
+   ```
+
+4. **Merge:**
+   - Code review approval
+   - Merge to dev branch
+   - Delete feature branch
+
+### **Release Process:**
+1. **Create Release Branch:**
+   ```bash
+   git checkout dev
+   git checkout -b release/v1.2.0
+   ```
+
+2. **Release Preparation:**
+   - Update version numbers
+   - Update CHANGELOG.md
+   - Final testing
+
+3. **Deploy:**
+   ```bash
+   git checkout main
+   git merge release/v1.2.0
+   git tag v1.2.0
+   git push origin main --tags
+   ```
+
+## 🐳 **Docker Development**
+
+### **Local Development:**
+```bash
+# Build application image
+docker build -t apitemplate-web:latest .
+
+# Run with docker-compose
+docker-compose up -d
+
+# View logs
+docker-compose logs -f apitemplate-web
+```
+
+### **Docker Compose Services:**
+- **apitemplate-web**: ASP.NET Core application
+- **mssql**: Microsoft SQL Server database
+- **elasticsearch**: Log aggregation (optional)
+- **kibana**: Log visualization (optional)
+
+## 🐳 **Docker Deployment**
+
+### **Development Environment:**
+```bash
+# Build and run with docker-compose
+docker build -t apitemplate-web:latest .
+docker-compose up -d
+
+# View logs
+docker-compose logs -f apitemplate-web
+```
+
+### **Production Deployment:**
+```bash
+# Build production image
+docker build -t apitemplate-web:v1.2.0 .
+
+# Push to registry
+docker tag apitemplate-web:v1.2.0 your-registry/apitemplate-web:v1.2.0
+docker push your-registry/apitemplate-web:v1.2.0
+```
+
+## 🔧 **Environment Configuration**
+
+### **Configuration Hierarchy:**
+1. **appsettings.json** - Base configuration
+2. **appsettings.Development.json** - Development overrides
+3. **appsettings.Production.json** - Production overrides
+4. **Environment Variables** - Runtime overrides
+5. **Kubernetes ConfigMaps/Secrets** - Container overrides
+
+### **Environment-Specific Settings:**
+```json
+// Development
+{
+  "ConnectionStrings": {
+    "MSSQL": "Server=localhost,1433;Database=webapi_dev;..."
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Debug"
+    }
+  }
+}
+
+// Production
+{
+  "ConnectionStrings": {
+    "MSSQL": "Server=mssql-service,1433;Database=apitemplate;..."
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information"
+    }
+  }
+}
+```
+
+## 🧪 **Testing Workflow**
+
+### **Pre-Commit Checks:**
+```bash
+# Run all tests (user must execute manually)
+dotnet test
+
+# Run linting
+dotnet format --verify-no-changes
+
+# Build solution
+dotnet build --configuration Release
+```
+
+**⚠️ NOTE: Tests should only be run with explicit user command.**
+
+### **CI/CD Pipeline:**
+1. **Build** - Compile solution
+2. **Test** - Run unit and integration tests
+3. **Lint** - Code quality checks
+4. **Security** - Vulnerability scanning
+5. **Package** - Create Docker images
+6. **Deploy** - Deploy to environments
+
+## 📊 **Monitoring & Logging**
+
+### **Application Monitoring:**
+- **Health Checks**: `/health` endpoint for Kubernetes probes
+- **Metrics**: Application performance metrics
+- **Logging**: Structured logging with Serilog
+- **Tracing**: Distributed tracing with Elastic APM
+
+### **Log Levels:**
+- **Debug**: Detailed diagnostic information
+- **Information**: General application flow
+- **Warning**: Potentially harmful situations
+- **Error**: Error events that don't stop the application
+- **Critical**: Very severe error events
+
+## 🔐 **Security Practices**
+
+### **Secrets Management:**
+- **Development**: Use `appsettings.Development.json` (not committed)
+- **Production**: Use Kubernetes Secrets
+- **CI/CD**: Use secure environment variables
+
+### **Security Checklist:**
+- [ ] No secrets in source code
+- [ ] HTTPS enabled in production
+- [ ] Input validation on all endpoints
+- [ ] SQL injection prevention (parameterized queries)
+- [ ] XSS protection enabled
+- [ ] CORS properly configured
+- [ ] Authentication/authorization implemented
+- [ ] Regular dependency updates
+
+## 📋 **Code Quality**
+
+### **Code Review Checklist:**
+- [ ] Code follows project conventions
+- [ ] Tests are included and passing
+- [ ] Documentation is updated
+- [ ] No security vulnerabilities
+- [ ] Performance considerations addressed
+- [ ] Error handling is appropriate
+- [ ] Logging is adequate
+
+### **Static Analysis:**
+```bash
+# Run code analysis
+dotnet build --verbosity normal
+
+# Check for security vulnerabilities
+dotnet list package --vulnerable
+
+# Format code
+dotnet format
+```
+
+## 🚨 **Troubleshooting**
+
+### **Common Issues:**
+1. **Database Connection**: Check connection strings and service names
+2. **Port Conflicts**: Ensure ports are available
+3. **Docker Container Issues**: Check container logs and health status
+4. **Docker Build Failures**: Verify Dockerfile and build context
+
+### **Debug Commands:**
+```bash
+# Check container status
+docker ps
+
+# View container logs
+docker logs -f apitemplate-web
+
+# Check docker-compose services
+docker-compose ps
+
+# Access container shell
+docker exec -it apitemplate-web bash
+```
