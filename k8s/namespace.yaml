@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apitemplate
+  labels:
+    name: apitemplate
+    app: asp-net-webapi-template

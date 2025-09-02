@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: apitemplate
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  ElasticConfiguration__Uri: "http://elasticsearch-service:9200"
