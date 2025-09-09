@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apm-server-deployment
+  namespace: apitemplate
+  labels:
+    app: apm-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apm-server
+  template:
+    metadata:
+      labels:
+        app: apm-server
+    spec:
+      containers:
+        - name: apm-server
+          image: docker.elastic.co/apm/apm-server:7.9.3
+          ports:
+            - containerPort: 8200
+          env:
+            - name: ELASTICSEARCH_URL
+              value: "http://elasticsearch-service:9200"
+            - name: ELASTICSEARCH_HOSTS
+              value: "http://elasticsearch-service:9200"
+            - name: KIBANA_URL
+              value: "http://kibana-service:5601"
+            - name: APM_SERVER_HOST
+              value: "0.0.0.0:8200"
+            - name: APM_SERVER_SECRET_TOKEN
+              value: "changeme"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8200
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8200
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apm-service
+  namespace: apitemplate
+  labels:
+    app: apm-server
+spec:
+  selector:
+    app: apm-server
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8200
+      targetPort: 8200
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apm-loadbalancer
+  namespace: apitemplate
+  labels:
+    app: apm-server
+spec:
+  selector:
+    app: apm-server
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8200
+      targetPort: 8200
+  type: LoadBalancer

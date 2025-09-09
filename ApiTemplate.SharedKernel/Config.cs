@@ -12,6 +12,8 @@ namespace ApiTemplate.SharedKernel
 
         public static bool IntegrationTests { get; private set; }
 
+        public static bool Kubernetes { get; private set; }
+
         public static int MaxRequestSizeBytes { get; set; }
 
         public static void ApplyConfiguration(this ConfigurationManager c)
@@ -23,11 +25,12 @@ namespace ApiTemplate.SharedKernel
             {
                 case nameof(Production): Production = true; break;
                 case nameof(IntegrationTests): IntegrationTests = true; break;
+                case nameof(Kubernetes): Kubernetes = true; break;
                 default: IsDev = true; break;
             }
 
             c.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-             .AddJsonFile($"appsettings.{Env}.json", optional: true, reloadOnChange: true);
+             .AddJsonFile($"appsettings.{Env.ToLowerInvariant()}.json", optional: true, reloadOnChange: true);
 
             MaxRequestSizeBytes = c.GetSection("MaxRequestSizeMb").Get<int>() * 1024 * 1024;
         }
