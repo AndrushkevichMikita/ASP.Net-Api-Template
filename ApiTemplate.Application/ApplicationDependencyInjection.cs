@@ -1,4 +1,5 @@
-﻿using ApiTemplate.Application.Interfaces;
+﻿using ApiTemplate.Application.EventHandlers;
+using ApiTemplate.Application.Interfaces;
 using ApiTemplate.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
@@ -14,6 +15,10 @@ namespace ApiTemplate.Application
             services.AddScoped<IEmailTemplateService, EmailTemplateService>();
             services.AddScoped<ApplicationSignInManager, ApplicationSignInManager>();
             services.AddScoped<ApplicationUserClaimsPrincipalFactory, ApplicationUserClaimsPrincipalFactory>();
+
+            // Register event handlers
+            services.AddScoped<AccountCreatedEventHandler>();
+            services.AddScoped<AccountUpdatedEventHandler>();
 
             services.AddAutoMapper(Assembly.GetExecutingAssembly());
 

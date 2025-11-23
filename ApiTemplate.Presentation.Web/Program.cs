@@ -1,12 +1,16 @@
 using ApiTemplate.Application;
+using ApiTemplate.Application.EventHandlers;
 using ApiTemplate.Domain;
+using ApiTemplate.Domain.Events;
 using ApiTemplate.Infrastructure;
+using ApiTemplate.Application.Interfaces;
 using ApiTemplate.Presentation.Web;
 using ApiTemplate.SharedKernel;
 using ApiTemplate.SharedKernel.CustomPolicy;
 using ApiTemplate.SharedKernel.ExceptionHandler;
 using ApiTemplate.SharedKernel.PipelineExtensions;
 using ApiTemplate.SharedKernel.Scheduler;
+using App.Metrics.AspNetCore;
 using Elastic.Apm.AspNetCore;
 using Elastic.Apm.DiagnosticSource;
 using Elastic.Apm.EntityFrameworkCore;
@@ -17,6 +21,7 @@ using Serilog.Exceptions;
 using Serilog.Sinks.Elasticsearch;
 using System.Reflection;
 using System.Text;
+using ApiTemplate.Infrastructure.EventBus;
 
 try
 {
@@ -66,7 +71,9 @@ try
                     .AddApplicationServices()
                     .AddInfrastructure(builder.Configuration)
                     .AddDomain(builder.Configuration)
-                    .AddSharedKernel();
+                    .AddSharedKernel()
+                    .AddMetrics() // App.Metrics registration
+                    .AddKafkaClient(builder.Configuration); // Kafka client registration
 
     var webApplication = builder.Build();
 
@@ -142,6 +149,11 @@ try
     });
 
     await webApplication.Services.ApplyDbMigrations(builder.Configuration);
+
+    // Register Kafka event subscriptions
+    var eventBus = webApplication.Services.GetRequiredService<IEventBus>();
+    eventBus.Subscribe<AccountCreatedEvent, AccountCreatedEventHandler>(numberOfConsumers: 1);
+    eventBus.Subscribe<AccountUpdatedEvent, AccountUpdatedEventHandler>(numberOfConsumers: 1);
 
     webApplication.Run();
 }

@@ -1,6 +1,7 @@
 ﻿using ApiTemplate.Application.Interfaces;
 using ApiTemplate.Application.Models;
 using ApiTemplate.Domain.Entities;
+using ApiTemplate.Domain.Events;
 using ApiTemplate.Domain.Exceptions;
 using ApiTemplate.SharedKernel.ExceptionHandler;
 using AutoMapper;
@@ -14,16 +15,19 @@ namespace ApiTemplate.Application.Services
         private readonly IEmailTemplateService _emailTemplateService;
         private readonly ApplicationSignInManager _signInManager;
         private readonly IMapper _mapper;
+        private readonly IEventBus _eventBus;
 
         public AccountService(IEmailTemplateService emailTemplateService,
                               IRepository<AccountTokenEntity> userTokenRepo,
                               ApplicationSignInManager signManager,
-                              IMapper mapper)
+                              IMapper mapper,
+                              IEventBus eventBus)
         {
             _emailTemplateService = emailTemplateService;
             _userTokenRepo = userTokenRepo;
             _signInManager = signManager;
             _mapper = mapper;
+            _eventBus = eventBus;
         }
 
         public Task SignOut()
@@ -48,6 +52,15 @@ namespace ApiTemplate.Application.Services
             await account.CreateAsync(_signInManager.UserManager, model.Password);
 
             await account.AssignRoleAsync(_signInManager.UserManager, model.Role);
+
+            // Publish AccountCreatedEvent after successful account creation
+            var accountCreatedEvent = new AccountCreatedEvent(
+                accountId: account.Id,
+                email: account.Email,
+                firstName: account.FirstName,
+                lastName: account.LastName);
+
+            await _eventBus.PublishAsync(accountCreatedEvent, CancellationToken.None);
         }
 
         private async Task<Account> DeleteSameNotConfirmed(string email)
