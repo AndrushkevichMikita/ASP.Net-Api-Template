@@ -14,6 +14,8 @@ namespace ApiTemplate.SharedKernel
 
         public static bool Kubernetes { get; private set; }
 
+        public static bool Docker { get; private set; }
+
         public static int MaxRequestSizeBytes { get; set; }
 
         public static void ApplyConfiguration(this ConfigurationManager c)
@@ -26,6 +28,7 @@ namespace ApiTemplate.SharedKernel
                 case nameof(Production): Production = true; break;
                 case nameof(IntegrationTests): IntegrationTests = true; break;
                 case nameof(Kubernetes): Kubernetes = true; break;
+                case nameof(Docker): Docker = true; break;
                 default: IsDev = true; break;
             }
 

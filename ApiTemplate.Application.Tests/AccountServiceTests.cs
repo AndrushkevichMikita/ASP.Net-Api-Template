@@ -2,6 +2,7 @@ using ApiTemplate.Application.Interfaces;
 using ApiTemplate.Application.Models;
 using ApiTemplate.Application.Services;
 using ApiTemplate.Domain.Entities;
+using ApiTemplate.Domain.Events;
 using ApiTemplate.SharedKernel.ExceptionHandler;
 using ApiTemplate.SharedKernel.Extensions;
 using AutoMapper;
@@ -67,11 +68,14 @@ namespace ApiTemplate.Application.Tests
                 )
             );
 
+            var eventBusMock = new Mock<IEventBus>();
+            
             _accountService = new AccountService(
                 _emailTemplateServiceMock.Object,
                 _userTokenRepoMock.Object,
                 _signInManager.Object,
-                _mapperMock.Object);
+                _mapperMock.Object,
+                eventBusMock.Object);
         }
 
         [Fact]

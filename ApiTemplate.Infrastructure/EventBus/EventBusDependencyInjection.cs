@@ -1,6 +1,7 @@
 using App.Metrics;
 using ApiTemplate.Application.Interfaces;
 using ApiTemplate.Infrastructure.EventBus.Internal;
+using ApiTemplate.Infrastructure.EventBus.Retry;
 using Confluent.Kafka;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,6 +23,9 @@ namespace ApiTemplate.Infrastructure.EventBus
 
             // Configure Kafka settings
             services.Configure<KafkaConfiguration>(configuration.GetSection("Kafka"));
+            
+            // Configure Retry settings
+            services.Configure<RetryConfiguration>(configuration.GetSection("Kafka:Retry"));
 
             // Register common dependencies
             services.AddHealthChecks()
@@ -68,6 +72,15 @@ namespace ApiTemplate.Infrastructure.EventBus
 
             services.AddSingleton<ISubscriptionsProcessor, SubscriptionsProcessor>();
             services.AddScoped<IEventDispatcher, KafkaEventDispatcher>();
+
+            // Register retry pipeline services
+            services.AddSingleton<RetryConsumerFactory>();
+            services.AddSingleton<IRetryConsumerFactory>(sp => sp.GetRequiredService<RetryConsumerFactory>());
+            services.AddSingleton<IRetryProducer, RetryProducer>();
+            services.AddSingleton<IRetryConsumer, RetryConsumer>();
+            services.AddSingleton<IDlqConsumer, DlqConsumer>();
+            services.AddSingleton<IRetryOrchestrator, RetryOrchestrator>();
+            services.AddSingleton<IRetryPipelineService, RetryPipelineService>();
 
             return services;
         }

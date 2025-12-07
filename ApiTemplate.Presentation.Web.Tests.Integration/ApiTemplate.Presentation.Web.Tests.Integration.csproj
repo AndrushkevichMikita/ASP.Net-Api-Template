@@ -14,6 +14,8 @@
     <PackageReference Include="Testcontainers" Version="3.9.0" />
     <PackageReference Include="Testcontainers.Elasticsearch" Version="3.9.0" />
     <PackageReference Include="Testcontainers.MsSql" Version="3.9.0" />
+    <PackageReference Include="Testcontainers.Kafka" Version="3.9.0" />
+    <PackageReference Include="Confluent.Kafka" Version="2.3.0" />
     <PackageReference Include="xunit" Version="2.4.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.3">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

@@ -8,7 +8,7 @@ services:
       context: .
       dockerfile: ./../ApiTemplate.Presentation.Web/Dockerfile
     ports:
-        - "8080:80"
+        - "8090:80"
     networks:
         - elastic
     depends_on:
@@ -17,7 +17,7 @@ services:
       ms-sql-server:
         condition: service_started
     environment:
-        ASPNETCORE_ENVIRONMENT: "Production"
+        ASPNETCORE_ENVIRONMENT: "Docker"
         Kafka__BootstrapServers: "kafka:9093"
 
   ms-sql-server:
@@ -101,31 +101,10 @@ services:
       retries: 20
       test: curl --write-out 'HTTP %{http_code}' --fail --silent --output /dev/null http://localhost:5601/api/status
 
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0
-    hostname: zookeeper
-    container_name: zookeeper
-    ports:
-      - "2181:2181"
-    networks:
-      - elastic
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "2181"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     hostname: kafka
     container_name: kafka
-    depends_on:
-      zookeeper:
-        condition: service_healthy
     ports:
       - "9092:9092"
       - "9093:9093"
@@ -134,11 +113,17 @@ services:
     volumes:
       - kafka_data:/var/lib/kafka/data
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # KRaft Mode Configuration (no Zookeeper needed)
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9094
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9094,PLAINTEXT_INTERNAL://0.0.0.0:9093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:9093
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      # Topic and replication settings
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
@@ -151,14 +136,15 @@ services:
       retries: 5
     restart: unless-stopped
 
-  kafdrop:
-    image: obsidiandynamics/kafdrop:4.0.1
-    container_name: kafdrop
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
     ports:
-      - "9000:9000"
+      - "8080:8080"
     environment:
-      KAFKA_BROKERCONNECT: kafka:9093
-      SERVER_SERVLET_CONTEXTPATH: "/"
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9093
+      # Zookeeper not needed in KRaft mode
     depends_on:
       kafka:
         condition: service_healthy

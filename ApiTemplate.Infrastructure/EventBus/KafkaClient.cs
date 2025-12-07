@@ -7,8 +7,10 @@ using App.Metrics.Meter;
 using App.Metrics.Timer;
 using ApiTemplate.Application.Interfaces;
 using ApiTemplate.Domain.Events;
+using ApiTemplate.Infrastructure.EventBus.Retry;
 using Confluent.Kafka;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Serilog;
 
@@ -48,6 +50,8 @@ namespace ApiTemplate.Infrastructure.EventBus
         private readonly ISubscriptionsProcessor _subscriptionsProcessor;
         private readonly KafkaConfiguration _kafkaConfiguration;
         private readonly Timer _diagnosticTimer;
+        private readonly IServiceProvider _serviceProvider;
+        private readonly HashSet<string> _retryConsumersStarted = new();
 
         private readonly CancellationTokenSource _stoppingTokenSource = new();
         private object _disposeLock = new();
@@ -60,7 +64,8 @@ namespace ApiTemplate.Infrastructure.EventBus
             IEventBusSubscriptionsManager subscriptionManager,
             ISubscriptionsProcessor subscriptionsProcessor,
             IMetrics metrics,
-            IConsumerFactory consumerFactory)
+            IConsumerFactory consumerFactory,
+            IServiceProvider serviceProvider)
         {
             _kafkaConfiguration = configuration.Value;
             _eventPublisher = eventPublisher;
@@ -71,6 +76,7 @@ namespace ApiTemplate.Infrastructure.EventBus
             _logger = logger;
             _metrics = metrics;
             _consumerFactory = consumerFactory;
+            _serviceProvider = serviceProvider;
             _logger.Debug("ConsumerFactory instance hash code: {HashCode}", _consumerFactory.GetHashCode());
 
             _diagnosticTimer = new Timer(
@@ -102,6 +108,71 @@ namespace ApiTemplate.Infrastructure.EventBus
             {
                 _subscriptionManager.AddSubscription<T, TH>();
                 DoInternalSubscribe<T>(numberOfConsumers);
+                
+                // Automatically start retry consumers for this topic
+                StartRetryConsumersForTopic<T>();
+            }
+        }
+
+        private void StartRetryConsumersForTopic<T>() where T : IntegrationEvent
+        {
+            try
+            {
+                var wholeTopic = typeof(T).GetCustomAttribute<KafkaTopicAttribute>();
+                if (wholeTopic == null)
+                {
+                    _logger.Warning("Cannot start retry consumers: KafkaTopicAttribute not found on {EventType}", typeof(T).Name);
+                    return;
+                }
+
+                var topic = wholeTopic.Name;
+                
+                // Only start retry consumers once per topic
+                lock (_retryConsumersStarted)
+                {
+                    if (_retryConsumersStarted.Contains(topic))
+                    {
+                        _logger.Debug("Retry consumers already started for topic {Topic}", topic);
+                        return;
+                    }
+
+                    _retryConsumersStarted.Add(topic);
+                }
+
+                // Start retry consumers asynchronously (fire and forget)
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        // Use a scope to get IRetryPipelineService
+                        using var scope = _serviceProvider.CreateScope();
+                        var retryPipelineService = scope.ServiceProvider.GetService<IRetryPipelineService>();
+                        
+                        if (retryPipelineService == null)
+                        {
+                            _logger.Warning("IRetryPipelineService not available. Retry consumers will not be started for topic {Topic}", topic);
+                            return;
+                        }
+
+                        _logger.Information("Starting retry consumers for topic {Topic}", topic);
+                        await retryPipelineService.StartRetryConsumersAsync(topic, _stoppingTokenSource.Token);
+                        await retryPipelineService.StartDlqConsumerAsync(topic, _stoppingTokenSource.Token);
+                        _logger.Information("Successfully started retry consumers for topic {Topic}", topic);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex, "Failed to start retry consumers for topic {Topic}", topic);
+                        // Remove from set so we can retry later
+                        lock (_retryConsumersStarted)
+                        {
+                            _retryConsumersStarted.Remove(topic);
+                        }
+                    }
+                }, _stoppingTokenSource.Token);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Error starting retry consumers for event type {EventType}", typeof(T).Name);
             }
         }
 
@@ -328,7 +399,8 @@ namespace ApiTemplate.Infrastructure.EventBus
                                 consumeResult.Topic,
                                 consumeResult.Message.Key,
                                 consumeResult.Partition.Value,
-                                consumeResult.Offset.Value);
+                                consumeResult.Offset.Value,
+                                consumeResult.Message.Headers);
 
                             await ProcessEventAsync(
                                 consumeResult.Message.Value,

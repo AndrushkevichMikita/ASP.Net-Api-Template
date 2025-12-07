@@ -17,21 +17,20 @@ namespace ApiTemplate.Application.EventHandlers
             Action onComplete,
             CancellationToken cancellationToken)
         {
-            // Log the event for verification
             _logger.Information(
-                "AccountCreatedEvent received - AccountId: {AccountId}, Email: {Email}, FirstName: {FirstName}, LastName: {LastName}, EventId: {EventId}",
+                "AccountCreatedEvent received - AccountId: {AccountId}, Email: {Email}, FirstName: {FirstName}, LastName: {LastName}, EventId: {EventId}, RetryAttempts: {RetryAttempts}",
                 integrationEvent.AccountId,
                 integrationEvent.Email,
                 integrationEvent.FirstName,
                 integrationEvent.LastName,
-                integrationEvent.Id);
+                integrationEvent.Id,
+                integrationEvent.RetryAttempts);
 
             // Example handler implementation
             // In a real scenario, you would perform business logic here
             // For example: send welcome email, create audit log, update cache, etc.
 
-            return Task.FromResult(IntegrationEventResult.CreateSuccessfulResult());
+            return Task.FromResult(IntegrationEventResult.CreateFailureResult(new Exception()));
         }
     }
 }
-

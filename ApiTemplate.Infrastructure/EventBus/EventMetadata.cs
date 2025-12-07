@@ -1,4 +1,5 @@
 using ApiTemplate.Domain.Events;
+using Confluent.Kafka;
 
 namespace ApiTemplate.Infrastructure.EventBus
 {
@@ -12,12 +13,13 @@ namespace ApiTemplate.Infrastructure.EventBus
             PartitionOffset = partitionOffset;
         }
 
-        public EventMetadata(string topicName, string computedPartitionKey, int partitionId = -1, long partitionOffset = -1)
+        public EventMetadata(string topicName, string computedPartitionKey, int partitionId = -1, long partitionOffset = -1, Headers headers = null)
         {
             TopicName = topicName;
             PartitionOffset = partitionOffset;
             PartitionKey = computedPartitionKey;
             PartitionId = partitionId;
+            Headers = headers;
         }
 
         public string TopicName { get; }
@@ -27,6 +29,11 @@ namespace ApiTemplate.Infrastructure.EventBus
         public int PartitionId { get; }
 
         public long PartitionOffset { get; }
+
+        /// <summary>
+        /// Kafka message headers (optional, available when consuming from Kafka).
+        /// </summary>
+        public Headers Headers { get; }
     }
 }
 
