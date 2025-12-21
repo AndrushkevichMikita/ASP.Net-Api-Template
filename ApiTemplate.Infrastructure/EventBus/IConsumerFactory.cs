@@ -7,4 +7,3 @@ namespace ApiTemplate.Infrastructure.EventBus
         IConsumer<string, string> Create();
     }
 }
-
