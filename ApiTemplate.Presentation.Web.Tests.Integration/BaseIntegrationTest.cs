@@ -196,6 +196,7 @@ namespace ApiTemplate.Presentation.Web.Tests.Integration
             
             // CRITICAL: Stop all EventBus consumers BEFORE disposing Kafka container
             // This prevents AccessViolationException when consumers try to consume from disposed broker
+            // Note: We only stop consumers manually - singletons (AdminClient, Producer) are disposed by DI container
             try
             {
                 // Get services from the factory's service provider
@@ -214,17 +215,19 @@ namespace ApiTemplate.Presentation.Web.Tests.Integration
                     }
                     catch
                     {
-                        // If both fail, we can't dispose services - log and continue
+                        // If both fail, we can't access services - log and continue
                         System.Diagnostics.Debug.WriteLine("Cannot access service provider for EventBus disposal");
                     }
                 }
                 
                 if (serviceProvider != null)
                 {
+                    // Access services directly from the service provider
+                    // Note: We only stop consumers manually - singletons are disposed by DI container
                     using var scope = serviceProvider.CreateScope();
                     var scopedProvider = scope.ServiceProvider;
                     
-                    // Dispose EventBus (KafkaClient) - this stops all consumers
+                    // Stop EventBus (KafkaClient) - this stops all consumers
                     try
                     {
                         if (scopedProvider.GetService<IEventBus>() is IDisposable eventBus)
@@ -237,7 +240,7 @@ namespace ApiTemplate.Presentation.Web.Tests.Integration
                         // Already disposed - ignore
                     }
                     
-                    // Dispose RetryPipelineService - this stops retry consumers
+                    // Stop RetryPipelineService - this stops retry consumers
                     try
                     {
                         if (scopedProvider.GetService<IRetryPipelineService>() is IDisposable retryPipelineService)
@@ -250,7 +253,7 @@ namespace ApiTemplate.Presentation.Web.Tests.Integration
                         // Already disposed - ignore
                     }
                     
-                    // Dispose RetryProducer - this stops retry producers
+                    // Stop RetryProducer - this stops retry producers
                     try
                     {
                         if (scopedProvider.GetService<IRetryProducer>() is IDisposable retryProducer)
@@ -263,7 +266,7 @@ namespace ApiTemplate.Presentation.Web.Tests.Integration
                         // Already disposed - ignore
                     }
                     
-                    // Dispose SubscriptionsProcessor - this stops subscription processing
+                    // Stop SubscriptionsProcessor - this stops subscription processing
                     try
                     {
                         if (scopedProvider.GetService<ISubscriptionsProcessor>() is IDisposable subscriptionsProcessor)
@@ -276,8 +279,9 @@ namespace ApiTemplate.Presentation.Web.Tests.Integration
                         // Already disposed - ignore
                     }
                     
-                    // Dispose main Kafka producer (singleton) - this stops all producer connections
-                    // Note: Producer may already be disposed by DI container, so wrap in try-catch
+                    // Flush main Kafka producer (singleton) - let DI container handle disposal
+                    // Note: We don't manually dispose singletons - the DI container will handle it
+                    // But we flush to ensure pending messages are sent before shutdown
                     try
                     {
                         var mainProducer = scopedProvider.GetService<IProducer<string, string>>();
@@ -287,13 +291,13 @@ namespace ApiTemplate.Presentation.Web.Tests.Integration
                             {
                                 mainProducer.Flush(TimeSpan.FromSeconds(5));
                             }
+                            catch (ObjectDisposedException)
+                            {
+                                // Producer already disposed - ignore
+                            }
                             catch
                             {
-                                // Ignore flush errors during shutdown
-                            }
-                            if (mainProducer is IDisposable disposableProducer)
-                            {
-                                disposableProducer.Dispose();
+                                // Ignore other flush errors during shutdown
                             }
                         }
                     }
@@ -301,45 +305,79 @@ namespace ApiTemplate.Presentation.Web.Tests.Integration
                     {
                         // Producer already disposed - ignore
                     }
-                    
-                    // Dispose AdminClient (singleton) - this stops admin connections
-                    // Note: AdminClient may already be disposed by DI container, so wrap in try-catch
-                    try
+                    catch
                     {
-                        if (scopedProvider.GetService<IAdminClient>() is IDisposable adminClient)
-                        {
-                            adminClient.Dispose();
-                        }
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                        // AdminClient already disposed - ignore
+                        // Ignore any other errors during producer access
                     }
                     
-                    // Give consumers and producers time to stop gracefully
+                    // Give consumers time to stop gracefully
                     // Increased delay to allow background tasks to complete
                     await Task.Delay(TimeSpan.FromSeconds(5));
+                    
+                    // Scope will be disposed here automatically
+                    // Note: AdminClient and Producer are singletons managed by DI container
+                    // They will be disposed when the host is disposed, which happens after containers
+                    // 
+                    // KNOWN ISSUE: AdminClient may throw ObjectDisposedException during host disposal
+                    // This is a Confluent.Kafka issue where AdminClient tries to cancel a CancellationTokenSource
+                    // that's already been disposed. This does not affect test functionality - all tests pass.
+                    // The exception occurs during test class cleanup after tests complete.
+                    // See: KAFKA_EVENTBUS_ARCHITECTURE.md for details
                 }
             }
             catch (Exception ex)
             {
                 // Log but don't fail - we still need to dispose containers
-                System.Diagnostics.Debug.WriteLine($"Error disposing EventBus services: {ex.Message}");
-                // Still wait a bit even if disposal failed, to allow any in-flight operations to complete
+                // ObjectDisposedException from AdminClient during DI container disposal is expected
+                System.Diagnostics.Debug.WriteLine($"Error during EventBus services shutdown: {ex.Message}");
+                // Still wait a bit even if shutdown failed, to allow any in-flight operations to complete
                 await Task.Delay(TimeSpan.FromSeconds(2));
             }
             
             // Now safe to dispose containers
-            if (_sharedMssqlContainer != null)
-            {
-                await _sharedMssqlContainer.StopAsync();
-                await _sharedMssqlContainer.DisposeAsync();
-            }
-            
+            // Stop containers first, then dispose to ensure ports are released
             if (_sharedKafkaContainer != null)
             {
-                await _sharedKafkaContainer.StopAsync();
-                await _sharedKafkaContainer.DisposeAsync();
+                try
+                {
+                    await _sharedKafkaContainer.StopAsync();
+                    await Task.Delay(TimeSpan.FromSeconds(1)); // Give port time to release
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error stopping Kafka container: {ex.Message}");
+                }
+                
+                try
+                {
+                    await _sharedKafkaContainer.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error disposing Kafka container: {ex.Message}");
+                }
+            }
+            
+            if (_sharedMssqlContainer != null)
+            {
+                try
+                {
+                    await _sharedMssqlContainer.StopAsync();
+                    await Task.Delay(TimeSpan.FromSeconds(1)); // Give port time to release
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error stopping MSSQL container: {ex.Message}");
+                }
+                
+                try
+                {
+                    await _sharedMssqlContainer.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error disposing MSSQL container: {ex.Message}");
+                }
             }
         }
     }
