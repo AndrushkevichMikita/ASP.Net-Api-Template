@@ -1,4 +1,6 @@
 using ApiTemplate.Domain.Events;
+using ApiTemplate.EventBus.Abstractions;
+using ApiTemplate.EventBus.Domain.Core.Events;
 
 namespace ApiTemplate.Application.EventHandlers
 {
@@ -17,4 +19,3 @@ namespace ApiTemplate.Application.EventHandlers
         }
     }
 }
-

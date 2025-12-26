@@ -20,5 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ApiTemplate.Domain\ApiTemplate.Domain.csproj" />
     <ProjectReference Include="..\ApiTemplate.SharedKernel\ApiTemplate.SharedKernel.csproj" />
+    <ProjectReference Include="..\ApiTemplate.EventBus.Domain.Core\ApiTemplate.EventBus.Domain.Core.csproj" />
+    <ProjectReference Include="..\ApiTemplate.EventBus.Abstractions\ApiTemplate.EventBus.Abstractions.csproj" />
   </ItemGroup>
 </Project>

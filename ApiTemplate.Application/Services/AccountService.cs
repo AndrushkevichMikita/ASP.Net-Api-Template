@@ -3,6 +3,7 @@ using ApiTemplate.Application.Models;
 using ApiTemplate.Domain.Entities;
 using ApiTemplate.Domain.Events;
 using ApiTemplate.Domain.Exceptions;
+using ApiTemplate.EventBus.Abstractions;
 using ApiTemplate.SharedKernel.ExceptionHandler;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
@@ -15,13 +16,13 @@ namespace ApiTemplate.Application.Services
         private readonly IEmailTemplateService _emailTemplateService;
         private readonly ApplicationSignInManager _signInManager;
         private readonly IMapper _mapper;
-        private readonly IEventBus _eventBus;
+        private readonly ApiTemplate.EventBus.Abstractions.IEventBus _eventBus;
 
         public AccountService(IEmailTemplateService emailTemplateService,
                               IRepository<AccountTokenEntity> userTokenRepo,
                               ApplicationSignInManager signManager,
                               IMapper mapper,
-                              IEventBus eventBus)
+                              ApiTemplate.EventBus.Abstractions.IEventBus eventBus)
         {
             _emailTemplateService = emailTemplateService;
             _userTokenRepo = userTokenRepo;

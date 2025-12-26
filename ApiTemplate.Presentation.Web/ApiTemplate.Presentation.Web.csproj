@@ -26,6 +26,7 @@
     <PackageReference Include="Serilog.Sinks.Debug" Version="2.0.0" />
     <PackageReference Include="Serilog.Sinks.Elasticsearch" Version="9.0.3" />
     <PackageReference Include="App.Metrics.AspNetCore" Version="4.3.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.SqlServer" Version="6.0.2" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.19.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="6.0.0">
       <PrivateAssets>all</PrivateAssets>
@@ -36,5 +37,6 @@
     <ProjectReference Include="..\ApiTemplate.Application\ApiTemplate.Application.csproj" />
     <ProjectReference Include="..\ApiTemplate.Infrastructure\ApiTemplate.Infrastructure.csproj" />
     <ProjectReference Include="..\ApiTemplate.SharedKernel\ApiTemplate.SharedKernel.csproj" />
+    <ProjectReference Include="..\ApiTemplate.EventBus.Kafka\ApiTemplate.EventBus.Kafka.csproj" />
   </ItemGroup>
 </Project>

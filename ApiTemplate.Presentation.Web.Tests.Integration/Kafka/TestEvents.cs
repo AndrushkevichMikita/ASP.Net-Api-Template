@@ -1,4 +1,5 @@
-using ApiTemplate.Domain.Events;
+using ApiTemplate.EventBus.Domain.Core.Attributes;
+using ApiTemplate.EventBus.Domain.Core.Events;
 
 namespace ApiTemplate.Presentation.Web.Tests.Integration.Kafka
 {
@@ -39,4 +40,3 @@ namespace ApiTemplate.Presentation.Web.Tests.Integration.Kafka
         public string LastName { get; set; }
     }
 }
-

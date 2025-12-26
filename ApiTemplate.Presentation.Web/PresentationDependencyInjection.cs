@@ -1,12 +1,14 @@
 ﻿using ApiTemplate.Application.Services;
 using ApiTemplate.Domain.Entities;
 using ApiTemplate.Infrastructure;
+using ApiTemplate.Infrastructure.HealthChecks;
 using ApiTemplate.SharedKernel;
 using ApiTemplate.SharedKernel.Extensions;
 using ApiTemplate.SharedKernel.FiltersAndAttributes;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
 using System.Net;
 using System.Reflection;
@@ -65,8 +67,49 @@ namespace ApiTemplate.Presentation.Web
                 });
                 var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
                 c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
+                
+                // Include health check endpoint in Swagger
+                c.TagActionsBy(api => new[] { api.GroupName ?? api.ActionDescriptor.RouteValues["controller"] });
             })
-            .AddHealthChecks();
+            .AddHttpClient() // Required for Elasticsearch and Kibana health checks
+            .AddHealthChecks()
+                // Database health check
+                .AddSqlServer(
+                    connectionString: configuration.GetConnectionString("MSSQL") ?? throw new InvalidOperationException("MSSQL connection string is required"),
+                    name: "Database",
+                    failureStatus: HealthStatus.Unhealthy,
+                    tags: new[] { "db", "sql", "sqlserver" })
+                // Elasticsearch health check
+                .Add(new HealthCheckRegistration(
+                    name: "Elasticsearch",
+                    factory: sp =>
+                    {
+                        var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+                        var elasticsearchUri = configuration["ElasticConfiguration:Uri"] ?? "http://localhost:9200";
+                        return new ElasticsearchHealthCheck(httpClientFactory, elasticsearchUri);
+                    },
+                    failureStatus: HealthStatus.Degraded,
+                    tags: new[] { "elasticsearch", "logging", "search" }))
+                // Kibana health check
+                .Add(new HealthCheckRegistration(
+                    name: "Kibana",
+                    factory: sp =>
+                    {
+                        var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+                        // Get Kibana URI from configuration, or derive from Elasticsearch URI
+                        var kibanaUri = configuration["ElasticConfiguration:KibanaUri"];
+                        if (string.IsNullOrEmpty(kibanaUri))
+                        {
+                            // Derive from Elasticsearch URI - replace port 9200 with 5601
+                            var elasticsearchUri = configuration["ElasticConfiguration:Uri"] ?? "http://localhost:9200";
+                            var uri = new Uri(elasticsearchUri);
+                            // Preserve the host (localhost, elasticsearch, etc.) but change port to 5601
+                            kibanaUri = $"{uri.Scheme}://{uri.Host}:5601";
+                        }
+                        return new KibanaHealthCheck(httpClientFactory, kibanaUri);
+                    },
+                    failureStatus: HealthStatus.Degraded,
+                    tags: new[] { "kibana", "ui", "monitoring" }));
 
             services.AddAuthentication(options =>
             {

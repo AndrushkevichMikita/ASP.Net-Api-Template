@@ -1,7 +1,10 @@
 ﻿using ApiTemplate.Application.Interfaces;
 using ApiTemplate.Infrastructure;
-using ApiTemplate.Infrastructure.EventBus;
+using ApiTemplate.EventBus.Abstractions;
+using ApiTemplate.EventBus.Kafka;
+using ApiTemplate.EventBus.Kafka.Retry;
 using ApiTemplate.Presentation.Web.Tests.Integration.Kafka;
+using Confluent.Kafka;
 using DotNet.Testcontainers.Builders;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -64,9 +67,24 @@ namespace ApiTemplate.Presentation.Web.Tests.Integration
                 {
                     services.Remove(dbContextDescriptor);
                 }
-                services.AddDbContext<ApplicationDbContext>(options =>
+                
+                // Use a factory to get connection string lazily (after containers are initialized)
+                // Use a factory to lazily get the connection string after containers are initialized
+                services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
                 {
-                    var c = _mssqlContainer.GetConnectionString();
+                    // Wait for container to be initialized (with timeout)
+                    var timeout = DateTime.UtcNow.AddSeconds(60);
+                    while (_sharedMssqlContainer == null && DateTime.UtcNow < timeout)
+                    {
+                        Thread.Sleep(100);
+                    }
+                    
+                    if (_sharedMssqlContainer == null)
+                    {
+                        throw new InvalidOperationException("MSSQL container not initialized within timeout. Check container startup.");
+                    }
+                    
+                    var c = _sharedMssqlContainer.GetConnectionString();
                     options.UseSqlServer(c);
                 });
 
@@ -82,38 +100,41 @@ namespace ApiTemplate.Presentation.Web.Tests.Integration
         public async Task InitializeAsync()
         {
             // Only initialize containers once, even if multiple factory instances are created
+            bool shouldInitialize = false;
             lock (_containerLock)
             {
-                if (_containersInitialized)
+                if (!_containersInitialized)
                 {
-                    // Containers already initialized by another factory instance
-                    return;
-                }
-                
-                // Create shared containers (only once)
-                _sharedMssqlContainer = new MsSqlBuilder()
-                    .WithCleanUp(true)
-                    .WithImage("mcr.microsoft.com/mssql/server:2017-latest-ubuntu")
-                    .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(1433))
-                    .Build();
+                    // Create shared containers (only once)
+                    _sharedMssqlContainer = new MsSqlBuilder()
+                        .WithCleanUp(true)
+                        .WithImage("mcr.microsoft.com/mssql/server:2017-latest-ubuntu")
+                        .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(1433))
+                        .Build();
 
-                _sharedKafkaContainer = new KafkaBuilder()
-                    .WithImage("confluentinc/cp-kafka:7.5.0")
-                    .WithCleanUp(true)
-                    .WithPortBinding(9094, 9092) // Host port 9094, container port 9092
-                    .WithEnvironment("KAFKA_ADVERTISED_LISTENERS", "PLAINTEXT://localhost:9094")
-                    .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(9092))
-                    .Build();
-                
-                _containersInitialized = true;
+                    _sharedKafkaContainer = new KafkaBuilder()
+                        .WithImage("confluentinc/cp-kafka:7.5.0")
+                        .WithCleanUp(true)
+                        .WithPortBinding(9094, 9092) // Host port 9094, container port 9092
+                        .WithEnvironment("KAFKA_ADVERTISED_LISTENERS", "PLAINTEXT://localhost:9094")
+                        .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(9092))
+                        .Build();
+                    
+                    _containersInitialized = true;
+                    shouldInitialize = true;
+                }
             }
             
-            await _mssqlContainer.StartAsync();
-            await _kafkaContainer.StartAsync();
-            
-            // Additional health check: Verify Kafka broker is ready by executing health check command
-            // This ensures Kafka is fully initialized before tests start
-            await WaitForKafkaReadyAsync();
+            // Only start containers if we created them (outside the lock to avoid deadlocks)
+            if (shouldInitialize)
+            {
+                await _sharedMssqlContainer.StartAsync();
+                await _sharedKafkaContainer.StartAsync();
+                
+                // Additional health check: Verify Kafka broker is ready by executing health check command
+                // This ensures Kafka is fully initialized before tests start
+                await WaitForKafkaReadyAsync();
+            }
         }
 
         private async Task WaitForKafkaReadyAsync()
@@ -157,6 +178,7 @@ namespace ApiTemplate.Presentation.Web.Tests.Integration
         public new async Task DisposeAsync()
         {
             // Only dispose containers once, even if multiple factory instances exist
+            bool shouldDispose = false;
             lock (_containerLock)
             {
                 if (!_containersInitialized)
@@ -164,8 +186,150 @@ namespace ApiTemplate.Presentation.Web.Tests.Integration
                     return;
                 }
                 _containersInitialized = false;
+                shouldDispose = true;
             }
             
+            if (!shouldDispose)
+            {
+                return;
+            }
+            
+            // CRITICAL: Stop all EventBus consumers BEFORE disposing Kafka container
+            // This prevents AccessViolationException when consumers try to consume from disposed broker
+            try
+            {
+                // Get services from the factory's service provider
+                // Use Server.Services if available, otherwise fall back to Services property
+                IServiceProvider? serviceProvider = null;
+                try
+                {
+                    serviceProvider = Server?.Services ?? Services;
+                }
+                catch
+                {
+                    // If Server is not available or disposed, try Services directly
+                    try
+                    {
+                        serviceProvider = Services;
+                    }
+                    catch
+                    {
+                        // If both fail, we can't dispose services - log and continue
+                        System.Diagnostics.Debug.WriteLine("Cannot access service provider for EventBus disposal");
+                    }
+                }
+                
+                if (serviceProvider != null)
+                {
+                    using var scope = serviceProvider.CreateScope();
+                    var scopedProvider = scope.ServiceProvider;
+                    
+                    // Dispose EventBus (KafkaClient) - this stops all consumers
+                    try
+                    {
+                        if (scopedProvider.GetService<IEventBus>() is IDisposable eventBus)
+                        {
+                            eventBus.Dispose();
+                        }
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // Already disposed - ignore
+                    }
+                    
+                    // Dispose RetryPipelineService - this stops retry consumers
+                    try
+                    {
+                        if (scopedProvider.GetService<IRetryPipelineService>() is IDisposable retryPipelineService)
+                        {
+                            retryPipelineService.Dispose();
+                        }
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // Already disposed - ignore
+                    }
+                    
+                    // Dispose RetryProducer - this stops retry producers
+                    try
+                    {
+                        if (scopedProvider.GetService<IRetryProducer>() is IDisposable retryProducer)
+                        {
+                            retryProducer.Dispose();
+                        }
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // Already disposed - ignore
+                    }
+                    
+                    // Dispose SubscriptionsProcessor - this stops subscription processing
+                    try
+                    {
+                        if (scopedProvider.GetService<ISubscriptionsProcessor>() is IDisposable subscriptionsProcessor)
+                        {
+                            subscriptionsProcessor.Dispose();
+                        }
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // Already disposed - ignore
+                    }
+                    
+                    // Dispose main Kafka producer (singleton) - this stops all producer connections
+                    // Note: Producer may already be disposed by DI container, so wrap in try-catch
+                    try
+                    {
+                        var mainProducer = scopedProvider.GetService<IProducer<string, string>>();
+                        if (mainProducer != null)
+                        {
+                            try
+                            {
+                                mainProducer.Flush(TimeSpan.FromSeconds(5));
+                            }
+                            catch
+                            {
+                                // Ignore flush errors during shutdown
+                            }
+                            if (mainProducer is IDisposable disposableProducer)
+                            {
+                                disposableProducer.Dispose();
+                            }
+                        }
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // Producer already disposed - ignore
+                    }
+                    
+                    // Dispose AdminClient (singleton) - this stops admin connections
+                    // Note: AdminClient may already be disposed by DI container, so wrap in try-catch
+                    try
+                    {
+                        if (scopedProvider.GetService<IAdminClient>() is IDisposable adminClient)
+                        {
+                            adminClient.Dispose();
+                        }
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // AdminClient already disposed - ignore
+                    }
+                    
+                    // Give consumers and producers time to stop gracefully
+                    // Increased delay to allow background tasks to complete
+                    await Task.Delay(TimeSpan.FromSeconds(5));
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log but don't fail - we still need to dispose containers
+                System.Diagnostics.Debug.WriteLine($"Error disposing EventBus services: {ex.Message}");
+                // Still wait a bit even if disposal failed, to allow any in-flight operations to complete
+                await Task.Delay(TimeSpan.FromSeconds(2));
+            }
+            
+            // Now safe to dispose containers
             if (_sharedMssqlContainer != null)
             {
                 await _sharedMssqlContainer.StopAsync();
@@ -205,8 +369,8 @@ namespace ApiTemplate.Presentation.Web.Tests.Integration
             lock (_subscriptionLock)
             {
                 if (!_testSubscriptionsRegistered)
-                {
-                    var eventBus = factory.Services.GetRequiredService<IEventBus>();
+                {   
+                    var eventBus = factory.Services.GetRequiredService<EventBus.Abstractions.IEventBus>();
                     eventBus.Subscribe<KafkaTestEvent, KafkaTestEventFailureHandler>(numberOfConsumers: 1);
                     eventBus.Subscribe<KafkaRetryTestEvent, KafkaRetryTestEventFailureHandler>(numberOfConsumers: 1);
                     _testSubscriptionsRegistered = true;

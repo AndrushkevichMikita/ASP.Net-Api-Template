@@ -21,7 +21,8 @@ using Serilog.Exceptions;
 using Serilog.Sinks.Elasticsearch;
 using System.Reflection;
 using System.Text;
-using ApiTemplate.Infrastructure.EventBus;
+using ApiTemplate.EventBus.Kafka;
+using ApiTemplate.EventBus.Abstractions;
 
 try
 {

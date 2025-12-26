@@ -1,3 +1,6 @@
+using ApiTemplate.EventBus.Domain.Core.Attributes;
+using ApiTemplate.EventBus.Domain.Core.Events;
+
 namespace ApiTemplate.Domain.Events
 {
     [KafkaTopic("queue.apitemplate.account_created")]

@@ -1,4 +1,6 @@
 using ApiTemplate.Domain.Events;
+using ApiTemplate.EventBus.Abstractions;
+using ApiTemplate.EventBus.Domain.Core.Events;
 using Serilog;
 
 namespace ApiTemplate.Presentation.Web.Tests.Integration.Kafka

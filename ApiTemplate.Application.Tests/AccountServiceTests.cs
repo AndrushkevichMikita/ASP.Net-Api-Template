@@ -3,6 +3,7 @@ using ApiTemplate.Application.Models;
 using ApiTemplate.Application.Services;
 using ApiTemplate.Domain.Entities;
 using ApiTemplate.Domain.Events;
+using ApiTemplate.EventBus.Abstractions;
 using ApiTemplate.SharedKernel.ExceptionHandler;
 using ApiTemplate.SharedKernel.Extensions;
 using AutoMapper;
