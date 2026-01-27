@@ -3,19 +3,18 @@ using ApiTemplate.Application.EventHandlers;
 using ApiTemplate.Domain;
 using ApiTemplate.Domain.Events;
 using ApiTemplate.Infrastructure;
-using ApiTemplate.Application.Interfaces;
 using ApiTemplate.Presentation.Web;
 using ApiTemplate.SharedKernel;
 using ApiTemplate.SharedKernel.CustomPolicy;
+using ApiTemplate.SharedKernel.Elasticsearch;
 using ApiTemplate.SharedKernel.ExceptionHandler;
+using ApiTemplate.SharedKernel.Logging;
 using ApiTemplate.SharedKernel.PipelineExtensions;
 using ApiTemplate.SharedKernel.Scheduler;
-using App.Metrics.AspNetCore;
 using Elastic.Apm.AspNetCore;
 using Elastic.Apm.DiagnosticSource;
 using Elastic.Apm.EntityFrameworkCore;
 using Elastic.Apm.SerilogEnricher;
-using Elastic.CommonSchema.Serilog;
 using Serilog;
 using Serilog.Exceptions;
 using Serilog.Sinks.Elasticsearch;
@@ -39,25 +38,49 @@ try
     LoggerConfiguration ProvideConfiguration(LoggerConfiguration l = null)
     {
         l ??= new LoggerConfiguration();
+
+        // Get configuration values (needed for ECS enricher and index decider)
+        var serviceName = builder.Configuration["ElasticApm:ServiceName"]
+            ?? throw new InvalidOperationException(
+                "Configuration value 'ElasticApm:ServiceName' is required. Please set it in appsettings.json or environment variables.");
+
+        var serviceEnvironment = builder.Configuration["ElasticApm:Environment"]
+            ?? throw new InvalidOperationException(
+                "Configuration value 'ElasticApm:Environment' is required. Please set it in appsettings.json or environment variables.");
+
+        var logsVersion = builder.Configuration["ElasticApm:LogsVersion"]
+            ?? throw new InvalidOperationException(
+                "Configuration value 'ElasticApm:LogsVersion' is required. Please set it in appsettings.json or environment variables.");
+
+        // Create ECS enricher (replaces non-standard fields with ECS equivalents)
+        var ecsEnricher = new EcsEnricher(serviceName, serviceEnvironment, logsVersion);
+
         l = l.ReadFrom.Configuration(builder.Configuration)
              .Enrich.FromLogContext()
              .Enrich.WithExceptionDetails()
-             .Enrich.WithMachineName()
-             .Enrich.WithElasticApmCorrelationInfo()
-             .Enrich.WithProperty("Environment", Config.Env)
+             .Enrich.WithMachineName()  // Keep for host.name mapping
+             .Enrich.WithElasticApmCorrelationInfo()  // Keep for APM correlation (will be mapped to ECS)
+             .Enrich.With(ecsEnricher)  // Add ECS enricher - replaces non-standard fields
              .WriteTo.Console()
              .WriteTo.File(@"Logs\log.txt", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 31);
 
         if (!Config.IntegrationTests)
+        {
+            // Create index decider instance
+            var indexDecider = new ElasticsearchIndexDecider(serviceName, serviceEnvironment, logsVersion);
+
             l = l.WriteTo.Elasticsearch(new ElasticsearchSinkOptions(new Uri(builder.Configuration["ElasticConfiguration:Uri"]))
             {
                 AutoRegisterTemplate = true,
-                CustomFormatter = new EcsTextFormatter(),
-                IndexFormat = $"{Assembly.GetExecutingAssembly().GetName().Name.ToLower().Replace(".", "-")}-{Config.Env?.ToLower().Replace(".", "-")}-{DateTime.UtcNow:yyyy-MM}"
+                IndexDecider = indexDecider.Decide,
+                InlineFields = true,
+                BatchAction = ElasticOpType.Create
             });
+        }
 
         return l;
-    };
+    }
+    ;
 
     // configure Serilog + Elasticsearch as sink for Serilog
     Log.Logger = new LoggerConfiguration().CreateLogger();
@@ -89,6 +112,8 @@ try
         webApplication.UseHsts();  // The default HSTS value is 30 days.
 
     webApplication.UseHttpsRedirection();
+
+    webApplication.UseHttpLogging(); // Enable HTTP request/response logging
 
     webApplication.UseRouting();
 
